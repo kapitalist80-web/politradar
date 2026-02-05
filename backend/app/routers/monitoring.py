@@ -1,0 +1,55 @@
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+
+from ..auth import get_current_user
+from ..database import get_db
+from ..models import MonitoringCandidate, User
+from ..schemas import MonitoringCandidateOut, MonitoringDecision
+
+router = APIRouter(prefix="/api/monitoring", tags=["monitoring"])
+
+
+@router.get("", response_model=list[MonitoringCandidateOut])
+def list_candidates(
+    decision: str = Query("pending"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    q = db.query(MonitoringCandidate)
+    if decision:
+        q = q.filter(MonitoringCandidate.decision == decision)
+    return (
+        q.order_by(MonitoringCandidate.submission_date.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+@router.patch("/{candidate_id}", response_model=MonitoringCandidateOut)
+def decide(
+    candidate_id: int,
+    body: MonitoringDecision,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if body.decision not in ("accepted", "rejected"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Entscheidung muss 'accepted' oder 'rejected' sein",
+        )
+
+    candidate = db.query(MonitoringCandidate).filter(MonitoringCandidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nicht gefunden")
+
+    candidate.decision = body.decision
+    candidate.decided_by = user.id
+    candidate.decided_at = datetime.utcnow()
+    db.commit()
+    db.refresh(candidate)
+    return candidate
