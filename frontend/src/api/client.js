@@ -23,7 +23,13 @@ async function request(path, options = {}) {
 
   if (res.status === 204) return null;
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    if (!res.ok) throw new Error(`Serverfehler (${res.status})`);
+    throw new Error("Ungueltige Serverantwort");
+  }
   if (!res.ok) throw new Error(data.detail || "Fehler");
   return data;
 }
