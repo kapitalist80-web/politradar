@@ -79,6 +79,16 @@ export default function BusinessDetail() {
         </div>
       </div>
 
+      {/* Motionstext */}
+      {business.submitted_text && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h2 className="font-semibold mb-3">Motionstext</h2>
+          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
+            {business.submitted_text}
+          </p>
+        </div>
+      )}
+
       {/* Timeline */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
         <h2 className="font-semibold mb-4">Eventverlauf</h2>

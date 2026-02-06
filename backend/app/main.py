@@ -30,6 +30,10 @@ async def lifespan(app: FastAPI):
             conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN author VARCHAR(500)"))
             conn.commit()
             logger.info("Added author column to tracked_businesses")
+        if "submitted_text" not in columns:
+            conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN submitted_text TEXT"))
+            conn.commit()
+            logger.info("Added submitted_text column to tracked_businesses")
 
     logger.info("Database tables ensured")
 

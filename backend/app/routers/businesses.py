@@ -68,6 +68,7 @@ async def add_business(
         status=info.get("status"),
         business_type=info.get("business_type"),
         author=info.get("author"),
+        submitted_text=info.get("submitted_text"),
         submission_date=info.get("submission_date"),
     )
     db.add(business)
@@ -134,12 +135,15 @@ async def get_business(
                 .all()
             )
 
-    # Backfill author if missing
-    if not getattr(business, "author", None):
+    # Backfill author/submitted_text if missing
+    if not getattr(business, "author", None) or not getattr(business, "submitted_text", None):
         info = await fetch_business(business.business_number)
-        if info and info.get("author"):
+        if info:
             try:
-                business.author = info["author"]
+                if info.get("author") and not getattr(business, "author", None):
+                    business.author = info["author"]
+                if info.get("submitted_text") and not getattr(business, "submitted_text", None):
+                    business.submitted_text = info["submitted_text"]
                 db.commit()
                 db.refresh(business)
             except Exception:

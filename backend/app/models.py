@@ -39,6 +39,7 @@ class TrackedBusiness(Base):
     status = Column(String(100))
     business_type = Column(String(100))
     author = Column(String(500))
+    submitted_text = Column(Text)
     submission_date = Column(DateTime)
     last_api_sync = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
