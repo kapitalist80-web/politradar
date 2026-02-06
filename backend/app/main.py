@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .routers import alerts, auth, businesses, monitoring, parliament
-from .services.scheduler import fetch_monitoring_candidates, sync_tracked_businesses
+from .services.scheduler import fetch_monitoring_candidates, sync_committee_schedules, sync_tracked_businesses
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -65,6 +65,12 @@ async def lifespan(app: FastAPI):
         "cron",
         hour=settings.MONITORING_CRON_HOUR,
         id="monitoring_candidates",
+    )
+    scheduler.add_job(
+        sync_committee_schedules,
+        "interval",
+        hours=settings.SYNC_INTERVAL_HOURS,
+        id="sync_committee_schedules",
     )
     scheduler.start()
     logger.info("Scheduler started")

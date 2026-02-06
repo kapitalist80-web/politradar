@@ -63,6 +63,8 @@ export const getBusiness = (id) => request(`/businesses/${id}`);
 export const deleteBusiness = (id) =>
   request(`/businesses/${id}`, { method: "DELETE" });
 
+export const getBusinessSchedule = (id) => request(`/businesses/${id}/schedule`);
+
 // Alerts
 export const getAlerts = (params = {}) => {
   const qs = new URLSearchParams(params).toString();

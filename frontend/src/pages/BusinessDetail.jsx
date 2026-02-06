@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { deleteBusiness, getBusiness } from "../api/client";
+import { deleteBusiness, getBusiness, getBusinessSchedule } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
 
 function HtmlContent({ html, className = "" }) {
@@ -13,9 +13,19 @@ function HtmlContent({ html, className = "" }) {
   );
 }
 
+const EVENT_TYPE_LABELS = {
+  status_change: "Status",
+  committee_scheduled: "Kommission",
+  debate_scheduled: "Traktandiert",
+  new_document: "Dokument",
+  vote_result: "Abstimmung",
+};
+
 export default function BusinessDetail() {
   const { id } = useParams();
   const [data, setData] = useState(null);
+  const [schedule, setSchedule] = useState(null);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -27,7 +37,11 @@ export default function BusinessDetail() {
 
   useEffect(() => {
     loadData().finally(() => setLoading(false));
-  }, [loadData]);
+    getBusinessSchedule(id)
+      .then(setSchedule)
+      .catch(() => setSchedule(null))
+      .finally(() => setScheduleLoading(false));
+  }, [loadData, id]);
 
   // Re-fetch after a short delay to pick up background-synced data
   useEffect(() => {
@@ -56,6 +70,10 @@ export default function BusinessDetail() {
 
   const affairId = "20" + business.business_number.replace(".", "");
   const parlamentUrl = `https://www.parlament.ch/de/ratsbetrieb/suche-curia-vista/geschaeft?AffairId=${affairId}`;
+
+  const hasPreconsultations = schedule?.preconsultations?.length > 0;
+  const hasSessions = schedule?.sessions?.length > 0;
+  const hasSchedule = hasPreconsultations || hasSessions;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -118,6 +136,88 @@ export default function BusinessDetail() {
         </div>
       </div>
 
+      {/* Kommissions- und Sessionstermine */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 className="font-semibold mb-4">Terminplanung</h2>
+        {scheduleLoading ? (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="animate-spin h-4 w-4 border-2 border-swiss-red border-t-transparent rounded-full" />
+            Termine werden geladen...
+          </div>
+        ) : !hasSchedule ? (
+          <p className="text-sm text-gray-500">Keine Termine bekannt</p>
+        ) : (
+          <div className="space-y-4">
+            {hasPreconsultations && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Vorberatung in Kommissionen</h3>
+                <div className="space-y-2">
+                  {schedule.preconsultations.map((p, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium">{p.committee_name}</span>
+                          {p.committee_abbrev && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200">
+                              {p.committee_abbrev}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                          {p.date && (
+                            <span>{new Date(p.date).toLocaleDateString("de-CH")}</span>
+                          )}
+                          {p.treatment_category && (
+                            <span>Kategorie: {p.treatment_category}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {hasSessions && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ratssitzungen (traktandiert)</h3>
+                <div className="space-y-2">
+                  {schedule.sessions.map((s, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium">{s.council}</span>
+                          {s.council_abbrev && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-800 text-amber-700 dark:text-amber-200">
+                              {s.council_abbrev}
+                            </span>
+                          )}
+                          {s.session_name && (
+                            <span className="text-xs text-gray-500">{s.session_name}</span>
+                          )}
+                        </div>
+                        <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                          {s.meeting_date && (
+                            <span>{new Date(s.meeting_date).toLocaleDateString("de-CH")}</span>
+                          )}
+                          {s.begin && <span>Beginn: {s.begin}</span>}
+                          {s.meeting_order && <span>{s.meeting_order}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Motionstext */}
       {business.submitted_text && (
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
@@ -161,13 +261,23 @@ export default function BusinessDetail() {
             {events.map((evt) => (
               <div key={evt.id} className="flex gap-4">
                 <div className="flex flex-col items-center">
-                  <div className="w-3 h-3 rounded-full bg-swiss-red" />
+                  <div className={`w-3 h-3 rounded-full ${
+                    evt.event_type === "committee_scheduled" ? "bg-blue-500" :
+                    evt.event_type === "debate_scheduled" ? "bg-amber-500" :
+                    "bg-swiss-red"
+                  }`} />
                   <div className="w-px flex-1 bg-gray-200 dark:bg-gray-700" />
                 </div>
                 <div className="pb-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                      {evt.event_type}
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                      evt.event_type === "committee_scheduled"
+                        ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+                        : evt.event_type === "debate_scheduled"
+                          ? "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                    }`}>
+                      {EVENT_TYPE_LABELS[evt.event_type] || evt.event_type}
                     </span>
                     {evt.event_date && (
                       <time className="text-xs text-gray-400">

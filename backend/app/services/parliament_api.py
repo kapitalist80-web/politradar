@@ -1,8 +1,10 @@
+import asyncio
 import logging
 import time
 from datetime import datetime
 
 import httpx
+import swissparlpy as spp
 
 from ..config import settings
 
@@ -176,3 +178,94 @@ async def fetch_new_businesses(since_date: str) -> list[dict]:
         parsed = _parse_business(item, nr)
         out.append({"business_number": nr, **parsed})
     return out
+
+
+# ---------------------------------------------------------------------------
+# swissparlpy-based functions for committee & session schedule data
+# ---------------------------------------------------------------------------
+
+def _fetch_preconsultations_sync(business_number: str) -> list[dict]:
+    """Fetch committee pre-consultations (Vorberatungen) for a business."""
+    try:
+        data = spp.get_data("Preconsultation", Language="DE", BusinessShortNumber=business_number)
+    except Exception as exc:
+        logger.warning("swissparlpy Preconsultation query failed: %s", exc)
+        return []
+
+    results = []
+    for row in data:
+        if not row.get("CommitteeName"):
+            continue
+        results.append({
+            "committee_name": row.get("CommitteeName", ""),
+            "committee_abbrev": row.get("Abbreviation1") or row.get("Abbreviation", ""),
+            "date": row["PreconsultationDate"].isoformat() if row.get("PreconsultationDate") else None,
+            "treatment_category": row.get("TreatmentCategory", ""),
+            "business_type": row.get("BusinessTypeName", ""),
+        })
+    return results
+
+
+def _fetch_session_schedule_sync(business_number: str) -> list[dict]:
+    """Fetch plenary session schedule for a business via SubjectBusiness → Subject → Meeting."""
+    try:
+        sb_data = spp.get_data("SubjectBusiness", Language="DE", BusinessShortNumber=business_number)
+    except Exception as exc:
+        logger.warning("swissparlpy SubjectBusiness query failed: %s", exc)
+        return []
+
+    subject_ids = []
+    for row in sb_data:
+        subject_ids.append(row["IdSubject"])
+
+    if not subject_ids:
+        return []
+
+    results = []
+    for sid in subject_ids:
+        try:
+            subj_data = spp.get_data("Subject", Language="DE", ID=sid)
+        except Exception:
+            continue
+        for subj in subj_data:
+            meeting_id = subj.get("IdMeeting")
+            if not meeting_id:
+                continue
+            try:
+                mtg_data = spp.get_data("Meeting", Language="DE", ID=meeting_id)
+            except Exception:
+                continue
+            for mtg in mtg_data:
+                results.append({
+                    "meeting_date": mtg["Date"].isoformat() if mtg.get("Date") else None,
+                    "begin": mtg.get("Begin", ""),
+                    "council": mtg.get("CouncilName", ""),
+                    "council_abbrev": mtg.get("CouncilAbbreviation", ""),
+                    "session_name": mtg.get("SessionName", ""),
+                    "meeting_order": mtg.get("MeetingOrderText", ""),
+                    "location": mtg.get("Location", ""),
+                })
+    return results
+
+
+async def fetch_preconsultations(business_number: str) -> list[dict]:
+    """Async wrapper: fetch committee pre-consultations for a business."""
+    return await asyncio.to_thread(_fetch_preconsultations_sync, business_number)
+
+
+async def fetch_session_schedule(business_number: str) -> list[dict]:
+    """Async wrapper: fetch plenary session schedule for a business."""
+    return await asyncio.to_thread(_fetch_session_schedule_sync, business_number)
+
+
+async def fetch_business_schedule(business_number: str) -> dict:
+    """Fetch full schedule info for a business (committees + plenary sessions)."""
+    preconsultations, sessions = await asyncio.gather(
+        fetch_preconsultations(business_number),
+        fetch_session_schedule(business_number),
+    )
+    return {
+        "business_number": business_number,
+        "preconsultations": preconsultations,
+        "sessions": sessions,
+    }

@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user
 from ..database import SessionLocal, get_db
 from ..models import BusinessEvent, TrackedBusiness, User
-from ..schemas import BusinessAdd, BusinessDetailOut, BusinessEventOut, TrackedBusinessOut
-from ..services.parliament_api import fetch_business, fetch_business_status
+from ..schemas import BusinessAdd, BusinessDetailOut, BusinessEventOut, BusinessScheduleOut, TrackedBusinessOut
+from ..services.parliament_api import fetch_business, fetch_business_schedule, fetch_business_status
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +181,24 @@ def get_business(
     background_tasks.add_task(_backfill_business, business.id, business.business_number)
 
     return {"business": business, "events": events}
+
+
+@router.get("/{business_id}/schedule", response_model=BusinessScheduleOut)
+async def get_business_schedule(
+    business_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    business = (
+        db.query(TrackedBusiness)
+        .filter(TrackedBusiness.id == business_id, TrackedBusiness.user_id == user.id)
+        .first()
+    )
+    if not business:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nicht gefunden")
+
+    schedule = await fetch_business_schedule(business.business_number)
+    return schedule
 
 
 @router.delete("/{business_id}", status_code=status.HTTP_204_NO_CONTENT)
