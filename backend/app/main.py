@@ -18,8 +18,19 @@ scheduler = AsyncIOScheduler()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create tables if they don't exist yet
+    from sqlalchemy import inspect, text
     from .database import Base, engine
     Base.metadata.create_all(bind=engine)
+
+    # Add missing columns for existing tables
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        columns = [c["name"] for c in inspector.get_columns("tracked_businesses")]
+        if "author" not in columns:
+            conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN author VARCHAR(500)"))
+            conn.commit()
+            logger.info("Added author column to tracked_businesses")
+
     logger.info("Database tables ensured")
 
     # Start scheduler
