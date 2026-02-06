@@ -135,12 +135,15 @@ async def get_business(
             )
 
     # Backfill author if missing
-    if not business.author:
+    if not getattr(business, "author", None):
         info = await fetch_business(business.business_number)
         if info and info.get("author"):
-            business.author = info["author"]
-            db.commit()
-            db.refresh(business)
+            try:
+                business.author = info["author"]
+                db.commit()
+                db.refresh(business)
+            except Exception:
+                db.rollback()
 
     return {"business": business, "events": events}
 

@@ -72,7 +72,7 @@ def _parse_business(item: dict, business_number: str) -> dict:
         "description": item.get("Description", ""),
         "status": item.get("BusinessStatusText", ""),
         "business_type": item.get("BusinessTypeName", ""),
-        "author": item.get("SubmittedText", ""),
+        "author": item.get("SubmittedBy", ""),
         "submission_date": submission_date,
     }
 
@@ -105,11 +105,17 @@ async def search_businesses(query: str) -> list[dict]:
     return out
 
 
+def _short_number_to_id(business_number: str) -> int:
+    """Convert short number '24.3961' to OData integer ID 20243961."""
+    return int("20" + business_number.replace(".", ""))
+
+
 async def fetch_business_status(business_number: str) -> list[dict]:
     """Fetch the status history for a business and return parsed events."""
+    business_id = _short_number_to_id(business_number)
     url = f"{BASE}/BusinessStatus"
     params = {
-        "$filter": f"BusinessNumber eq '{business_number}' and Language eq 'DE'",
+        "$filter": f"BusinessNumber eq {business_id} and Language eq 'DE'",
         "$format": "json",
         "$orderby": "Modified desc",
     }
@@ -123,8 +129,8 @@ async def fetch_business_status(business_number: str) -> list[dict]:
 
     events = []
     for item in results:
-        status_text = item.get("BusinessStatusText", "") or item.get("StatusText", "")
-        modified_raw = item.get("Modified") or item.get("BusinessStatusDate")
+        status_text = item.get("BusinessStatusName", "")
+        modified_raw = item.get("BusinessStatusDate") or item.get("Modified")
         event_date = None
         if modified_raw:
             try:
