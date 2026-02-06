@@ -7,7 +7,7 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import BusinessEvent, TrackedBusiness, User
 from ..schemas import BusinessAdd, BusinessDetailOut, BusinessEventOut, TrackedBusinessOut
-from ..services.parliament_api import fetch_business
+from ..services.parliament_api import fetch_business, fetch_business_status
 
 router = APIRouter(prefix="/api/businesses", tags=["businesses"])
 
@@ -67,16 +67,35 @@ async def add_business(
         description=info.get("description"),
         status=info.get("status"),
         business_type=info.get("business_type"),
+        author=info.get("author"),
         submission_date=info.get("submission_date"),
     )
     db.add(business)
+    db.flush()
+
+    # Fetch and store initial timeline events from parliament API
+    existing_events = (
+        db.query(BusinessEvent)
+        .filter(BusinessEvent.business_number == data.business_number)
+        .count()
+    )
+    if existing_events == 0:
+        status_events = await fetch_business_status(data.business_number)
+        for evt in status_events:
+            db.add(BusinessEvent(
+                business_number=data.business_number,
+                event_type=evt["event_type"],
+                event_date=evt.get("event_date"),
+                description=evt.get("description"),
+            ))
+
     db.commit()
     db.refresh(business)
     return business
 
 
 @router.get("/{business_id}", response_model=BusinessDetailOut)
-def get_business(
+async def get_business(
     business_id: int,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -95,6 +114,34 @@ def get_business(
         .order_by(BusinessEvent.event_date.desc())
         .all()
     )
+
+    # If no events in DB, try to fetch from parliament API
+    if not events:
+        status_events = await fetch_business_status(business.business_number)
+        for evt in status_events:
+            db.add(BusinessEvent(
+                business_number=business.business_number,
+                event_type=evt["event_type"],
+                event_date=evt.get("event_date"),
+                description=evt.get("description"),
+            ))
+        if status_events:
+            db.commit()
+            events = (
+                db.query(BusinessEvent)
+                .filter(BusinessEvent.business_number == business.business_number)
+                .order_by(BusinessEvent.event_date.desc())
+                .all()
+            )
+
+    # Backfill author if missing
+    if not business.author:
+        info = await fetch_business(business.business_number)
+        if info and info.get("author"):
+            business.author = info["author"]
+            db.commit()
+            db.refresh(business)
+
     return {"business": business, "events": events}
 
 
