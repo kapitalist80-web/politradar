@@ -6,13 +6,14 @@ function authHeaders() {
 }
 
 async function request(path, options = {}) {
+  const { headers: extraHeaders, ...fetchOptions } = options;
   const res = await fetch(`${API_BASE}${path}`, {
+    ...fetchOptions,
     headers: {
       "Content-Type": "application/json",
       ...authHeaders(),
-      ...options.headers,
+      ...extraHeaders,
     },
-    ...options,
   });
 
   if (res.status === 401) {
