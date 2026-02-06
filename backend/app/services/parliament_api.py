@@ -73,6 +73,7 @@ def _parse_business(item: dict, business_number: str) -> dict:
         "status": item.get("BusinessStatusText", ""),
         "business_type": item.get("BusinessTypeName", ""),
         "author": item.get("SubmittedBy", ""),
+        "submitted_text": item.get("SubmittedText", ""),
         "submission_date": submission_date,
     }
 
