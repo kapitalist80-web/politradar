@@ -34,6 +34,22 @@ async def lifespan(app: FastAPI):
             conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN submitted_text TEXT"))
             conn.commit()
             logger.info("Added submitted_text column to tracked_businesses")
+        if "reasoning" not in columns:
+            conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN reasoning TEXT"))
+            conn.commit()
+            logger.info("Added reasoning column to tracked_businesses")
+        if "federal_council_response" not in columns:
+            conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN federal_council_response TEXT"))
+            conn.commit()
+            logger.info("Added federal_council_response column to tracked_businesses")
+        if "federal_council_proposal" not in columns:
+            conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN federal_council_proposal VARCHAR(200)"))
+            conn.commit()
+            logger.info("Added federal_council_proposal column to tracked_businesses")
+        if "first_council" not in columns:
+            conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN first_council VARCHAR(100)"))
+            conn.commit()
+            logger.info("Added first_council column to tracked_businesses")
 
     logger.info("Database tables ensured")
 
