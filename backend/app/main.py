@@ -17,6 +17,11 @@ scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Create tables if they don't exist yet
+    from .database import Base, engine
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables ensured")
+
     # Start scheduler
     scheduler.add_job(
         sync_tracked_businesses,
