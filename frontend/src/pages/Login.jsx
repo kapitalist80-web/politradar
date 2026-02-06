@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getMe, login } from "../api/client";
+import { login } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
@@ -15,9 +15,7 @@ export default function Login() {
     setError("");
     try {
       const data = await login(email, password);
-      localStorage.setItem("token", data.access_token);
-      const user = await getMe();
-      loginUser(data.access_token, user);
+      loginUser(data.access_token, data.user);
       navigate("/");
     } catch (err) {
       setError(err.message);

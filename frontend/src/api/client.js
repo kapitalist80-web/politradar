@@ -17,8 +17,7 @@ async function request(path, options = {}) {
 
   if (res.status === 401) {
     localStorage.removeItem("token");
-    window.location.href = "/login";
-    return null;
+    throw new Error("Ungueltige Anmeldedaten");
   }
 
   if (res.status === 204) return null;
