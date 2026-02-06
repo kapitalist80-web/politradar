@@ -32,6 +32,9 @@ export default function BusinessDetail() {
 
   const { business, events } = data;
 
+  const affairId = "20" + business.business_number.replace(".", "");
+  const parlamentUrl = `https://www.parlament.ch/de/ratsbetrieb/suche-curia-vista/geschaeft?AffairId=${affairId}`;
+
   return (
     <div className="max-w-3xl mx-auto">
       {/* Header */}
@@ -48,8 +51,9 @@ export default function BusinessDetail() {
         <p className="text-gray-600 dark:text-gray-400">
           {business.description}
         </p>
-        <div className="flex gap-4 mt-3 text-sm text-gray-500">
+        <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-500">
           {business.business_type && <span>{business.business_type}</span>}
+          {business.author && <span>Urheber: {business.author}</span>}
           {business.submission_date && (
             <span>
               Eingereicht:{" "}
@@ -62,6 +66,16 @@ export default function BusinessDetail() {
               {new Date(business.last_api_sync).toLocaleString("de-CH")}
             </span>
           )}
+        </div>
+        <div className="mt-3">
+          <a
+            href={parlamentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-swiss-red hover:underline"
+          >
+            Geschaeft auf parlament.ch ansehen &rarr;
+          </a>
         </div>
       </div>
 

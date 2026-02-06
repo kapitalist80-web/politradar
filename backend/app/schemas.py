@@ -43,6 +43,7 @@ class TrackedBusinessOut(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     business_type: Optional[str] = None
+    author: Optional[str] = None
     submission_date: Optional[datetime] = None
     last_api_sync: Optional[datetime] = None
     created_at: datetime

@@ -72,6 +72,7 @@ def _parse_business(item: dict, business_number: str) -> dict:
         "description": item.get("Description", ""),
         "status": item.get("BusinessStatusText", ""),
         "business_type": item.get("BusinessTypeName", ""),
+        "author": item.get("SubmittedText", ""),
         "submission_date": submission_date,
     }
 
@@ -105,7 +106,7 @@ async def search_businesses(query: str) -> list[dict]:
 
 
 async def fetch_business_status(business_number: str) -> list[dict]:
-    """Fetch the status history for a business."""
+    """Fetch the status history for a business and return parsed events."""
     url = f"{BASE}/BusinessStatus"
     params = {
         "$filter": f"BusinessNumber eq '{business_number}' and Language eq 'DE'",
@@ -117,7 +118,31 @@ async def fetch_business_status(business_number: str) -> list[dict]:
         return []
 
     results = data.get("d", {}).get("results", []) if isinstance(data.get("d"), dict) else []
-    return results
+    if not results:
+        results = data.get("d", []) if isinstance(data.get("d"), list) else []
+
+    events = []
+    for item in results:
+        status_text = item.get("BusinessStatusText", "") or item.get("StatusText", "")
+        modified_raw = item.get("Modified") or item.get("BusinessStatusDate")
+        event_date = None
+        if modified_raw:
+            try:
+                if "/Date(" in str(modified_raw):
+                    ts = int(str(modified_raw).split("(")[1].split(")")[0].split("+")[0].split("-")[0])
+                    event_date = datetime.utcfromtimestamp(ts / 1000)
+                else:
+                    event_date = datetime.fromisoformat(str(modified_raw).replace("Z", "+00:00"))
+            except (ValueError, IndexError):
+                pass
+
+        if status_text:
+            events.append({
+                "event_type": "status_change",
+                "event_date": event_date,
+                "description": status_text,
+            })
+    return events
 
 
 async def fetch_new_businesses(since_date: str) -> list[dict]:
