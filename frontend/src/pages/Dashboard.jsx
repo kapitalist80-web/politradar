@@ -12,7 +12,7 @@ export default function Dashboard() {
     try {
       const [biz, alerts] = await Promise.all([
         getBusinesses(),
-        getAlerts({ is_read: false, limit: 0 }),
+        getAlerts({ is_read: false }),
       ]);
       setBusinesses(biz || []);
       setUnreadCount(Array.isArray(alerts) ? alerts.length : 0);
