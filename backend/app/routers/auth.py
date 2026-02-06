@@ -36,7 +36,7 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
             detail="Ungueltige Anmeldedaten",
         )
     token = create_access_token({"sub": user.id})
-    return {"access_token": token}
+    return {"access_token": token, "user": user}
 
 
 @router.post("/logout")
