@@ -35,7 +35,7 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Ungueltige Anmeldedaten",
         )
-    token = create_access_token({"sub": user.id})
+    token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "user": user}
 
 
