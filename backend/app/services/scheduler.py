@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import Alert, BusinessEvent, MonitoringCandidate, TrackedBusiness
-from .parliament_api import fetch_business, fetch_new_businesses
+from .parliament_api import fetch_business, fetch_new_businesses, fetch_preconsultations, fetch_session_schedule
 
 logger = logging.getLogger(__name__)
 
@@ -120,5 +120,141 @@ async def fetch_monitoring_candidates():
     except Exception:
         db.rollback()
         logger.exception("Monitoring fetch failed")
+    finally:
+        db.close()
+
+
+async def sync_committee_schedules():
+    """Check for new committee/session scheduling of tracked businesses (runs every 6 hours)."""
+    db: Session = SessionLocal()
+    try:
+        businesses = db.query(TrackedBusiness).all()
+        seen: set[str] = set()
+        new_events = 0
+
+        for biz in businesses:
+            if biz.business_number in seen:
+                continue
+            seen.add(biz.business_number)
+
+            # Fetch committee pre-consultations
+            preconsultations = await fetch_preconsultations(biz.business_number)
+            for precon in preconsultations:
+                committee = precon.get("committee_name", "")
+                precon_date = precon.get("date")
+                # Build a dedup key from business_number + committee + date
+                description = f"Vorberatung: {committee}"
+                if precon.get("committee_abbrev"):
+                    description += f" ({precon['committee_abbrev']})"
+                if precon.get("treatment_category"):
+                    description += f" – Kategorie: {precon['treatment_category']}"
+
+                existing = (
+                    db.query(BusinessEvent)
+                    .filter(
+                        BusinessEvent.business_number == biz.business_number,
+                        BusinessEvent.event_type == "committee_scheduled",
+                        BusinessEvent.committee_name == committee,
+                        BusinessEvent.description == description,
+                    )
+                    .first()
+                )
+                if existing:
+                    continue
+
+                event_date = None
+                if precon_date:
+                    try:
+                        event_date = datetime.fromisoformat(precon_date)
+                    except (ValueError, TypeError):
+                        pass
+
+                event = BusinessEvent(
+                    business_number=biz.business_number,
+                    event_type="committee_scheduled",
+                    event_date=event_date,
+                    description=description,
+                    committee_name=committee,
+                )
+                db.add(event)
+                new_events += 1
+
+                # Alert all users tracking this business
+                trackers = (
+                    db.query(TrackedBusiness)
+                    .filter(TrackedBusiness.business_number == biz.business_number)
+                    .all()
+                )
+                for t in trackers:
+                    date_str = event_date.strftime("%d.%m.%Y") if event_date else "unbekannt"
+                    alert = Alert(
+                        user_id=t.user_id,
+                        business_number=biz.business_number,
+                        alert_type="committee_scheduled",
+                        message=f"Geschaeft {biz.business_number}: {description} (Datum: {date_str})",
+                    )
+                    db.add(alert)
+
+            # Fetch plenary session schedule
+            sessions = await fetch_session_schedule(biz.business_number)
+            for sess in sessions:
+                council = sess.get("council", "")
+                session_name = sess.get("session_name", "")
+                meeting_date = sess.get("meeting_date")
+                description = f"Traktandiert: {council}"
+                if session_name:
+                    description += f", {session_name}"
+                if sess.get("meeting_order"):
+                    description += f" – {sess['meeting_order']}"
+
+                existing = (
+                    db.query(BusinessEvent)
+                    .filter(
+                        BusinessEvent.business_number == biz.business_number,
+                        BusinessEvent.event_type == "debate_scheduled",
+                        BusinessEvent.description == description,
+                    )
+                    .first()
+                )
+                if existing:
+                    continue
+
+                event_date = None
+                if meeting_date:
+                    try:
+                        event_date = datetime.fromisoformat(meeting_date)
+                    except (ValueError, TypeError):
+                        pass
+
+                event = BusinessEvent(
+                    business_number=biz.business_number,
+                    event_type="debate_scheduled",
+                    event_date=event_date,
+                    description=description,
+                    committee_name=council,
+                )
+                db.add(event)
+                new_events += 1
+
+                trackers = (
+                    db.query(TrackedBusiness)
+                    .filter(TrackedBusiness.business_number == biz.business_number)
+                    .all()
+                )
+                for t in trackers:
+                    date_str = event_date.strftime("%d.%m.%Y") if event_date else "unbekannt"
+                    alert = Alert(
+                        user_id=t.user_id,
+                        business_number=biz.business_number,
+                        alert_type="debate_scheduled",
+                        message=f"Geschaeft {biz.business_number}: {description} (Datum: {date_str})",
+                    )
+                    db.add(alert)
+
+        db.commit()
+        logger.info("Committee schedule sync: %d new events for %d businesses", new_events, len(seen))
+    except Exception:
+        db.rollback()
+        logger.exception("Committee schedule sync failed")
     finally:
         db.close()

@@ -111,3 +111,28 @@ class ParliamentPreview(BaseModel):
     business_type: Optional[str] = None
     status: Optional[str] = None
     submission_date: Optional[str] = None
+
+
+# --- Schedule ---
+class PreconsultationOut(BaseModel):
+    committee_name: str
+    committee_abbrev: Optional[str] = None
+    date: Optional[str] = None
+    treatment_category: Optional[str] = None
+    business_type: Optional[str] = None
+
+
+class SessionScheduleOut(BaseModel):
+    meeting_date: Optional[str] = None
+    begin: Optional[str] = None
+    council: Optional[str] = None
+    council_abbrev: Optional[str] = None
+    session_name: Optional[str] = None
+    meeting_order: Optional[str] = None
+    location: Optional[str] = None
+
+
+class BusinessScheduleOut(BaseModel):
+    business_number: str
+    preconsultations: list[PreconsultationOut] = []
+    sessions: list[SessionScheduleOut] = []
