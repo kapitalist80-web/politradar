@@ -1,13 +1,16 @@
+import logging
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
-from ..database import get_db
+from ..database import SessionLocal, get_db
 from ..models import BusinessEvent, TrackedBusiness, User
 from ..schemas import BusinessAdd, BusinessDetailOut, BusinessEventOut, TrackedBusinessOut
 from ..services.parliament_api import fetch_business, fetch_business_status
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/businesses", tags=["businesses"])
 
@@ -69,6 +72,10 @@ async def add_business(
         business_type=info.get("business_type"),
         author=info.get("author"),
         submitted_text=info.get("submitted_text"),
+        reasoning=info.get("reasoning"),
+        federal_council_response=info.get("federal_council_response"),
+        federal_council_proposal=info.get("federal_council_proposal"),
+        first_council=info.get("first_council"),
         submission_date=info.get("submission_date"),
     )
     db.add(business)
@@ -95,9 +102,63 @@ async def add_business(
     return business
 
 
+async def _backfill_business(business_id: int, business_number: str) -> None:
+    """Background task: fetch missing data from parliament API and store in DB."""
+    db: Session = SessionLocal()
+    try:
+        # Backfill events if none exist
+        event_count = (
+            db.query(BusinessEvent)
+            .filter(BusinessEvent.business_number == business_number)
+            .count()
+        )
+        if event_count == 0:
+            status_events = await fetch_business_status(business_number)
+            for evt in status_events:
+                db.add(BusinessEvent(
+                    business_number=business_number,
+                    event_type=evt["event_type"],
+                    event_date=evt.get("event_date"),
+                    description=evt.get("description"),
+                ))
+            if status_events:
+                db.commit()
+
+        # Backfill business detail fields if any are missing
+        business = db.query(TrackedBusiness).filter(TrackedBusiness.id == business_id).first()
+        if not business:
+            return
+
+        needs_backfill = not business.author or not business.submitted_text or \
+            not business.reasoning or not business.federal_council_proposal or \
+            not business.first_council
+        if needs_backfill:
+            info = await fetch_business(business.business_number)
+            if info:
+                if info.get("author") and not business.author:
+                    business.author = info["author"]
+                if info.get("submitted_text") and not business.submitted_text:
+                    business.submitted_text = info["submitted_text"]
+                if info.get("reasoning") and not business.reasoning:
+                    business.reasoning = info["reasoning"]
+                if info.get("federal_council_response") and not business.federal_council_response:
+                    business.federal_council_response = info["federal_council_response"]
+                if info.get("federal_council_proposal") and not business.federal_council_proposal:
+                    business.federal_council_proposal = info["federal_council_proposal"]
+                if info.get("first_council") and not business.first_council:
+                    business.first_council = info["first_council"]
+                db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Backfill failed for business %s", business_number)
+    finally:
+        db.close()
+
+
 @router.get("/{business_id}", response_model=BusinessDetailOut)
-async def get_business(
+def get_business(
     business_id: int,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -116,38 +177,8 @@ async def get_business(
         .all()
     )
 
-    # If no events in DB, try to fetch from parliament API
-    if not events:
-        status_events = await fetch_business_status(business.business_number)
-        for evt in status_events:
-            db.add(BusinessEvent(
-                business_number=business.business_number,
-                event_type=evt["event_type"],
-                event_date=evt.get("event_date"),
-                description=evt.get("description"),
-            ))
-        if status_events:
-            db.commit()
-            events = (
-                db.query(BusinessEvent)
-                .filter(BusinessEvent.business_number == business.business_number)
-                .order_by(BusinessEvent.event_date.desc())
-                .all()
-            )
-
-    # Backfill author/submitted_text if missing
-    if not getattr(business, "author", None) or not getattr(business, "submitted_text", None):
-        info = await fetch_business(business.business_number)
-        if info:
-            try:
-                if info.get("author") and not getattr(business, "author", None):
-                    business.author = info["author"]
-                if info.get("submitted_text") and not getattr(business, "submitted_text", None):
-                    business.submitted_text = info["submitted_text"]
-                db.commit()
-                db.refresh(business)
-            except Exception:
-                db.rollback()
+    # Schedule background API sync for missing data (non-blocking)
+    background_tasks.add_task(_backfill_business, business.id, business.business_number)
 
     return {"business": business, "events": events}
 

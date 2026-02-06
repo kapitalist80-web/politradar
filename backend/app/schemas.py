@@ -45,6 +45,10 @@ class TrackedBusinessOut(BaseModel):
     business_type: Optional[str] = None
     author: Optional[str] = None
     submitted_text: Optional[str] = None
+    reasoning: Optional[str] = None
+    federal_council_response: Optional[str] = None
+    federal_council_proposal: Optional[str] = None
+    first_council: Optional[str] = None
     submission_date: Optional[datetime] = None
     last_api_sync: Optional[datetime] = None
     created_at: datetime

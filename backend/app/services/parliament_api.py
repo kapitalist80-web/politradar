@@ -74,6 +74,10 @@ def _parse_business(item: dict, business_number: str) -> dict:
         "business_type": item.get("BusinessTypeName", ""),
         "author": item.get("SubmittedBy", ""),
         "submitted_text": item.get("SubmittedText", ""),
+        "reasoning": item.get("ReasonText", ""),
+        "federal_council_response": item.get("FederalCouncilResponseText", ""),
+        "federal_council_proposal": item.get("FederalCouncilProposalText", ""),
+        "first_council": item.get("FirstCouncil1Name", ""),
         "submission_date": submission_date,
     }
 

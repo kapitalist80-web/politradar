@@ -1,7 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { deleteBusiness, getBusiness } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
+
+function HtmlContent({ html, className = "" }) {
+  if (!html) return null;
+  return (
+    <div
+      className={className}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
 
 export default function BusinessDetail() {
   const { id } = useParams();
@@ -9,12 +19,24 @@ export default function BusinessDetail() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    getBusiness(id)
+  const loadData = useCallback(() => {
+    return getBusiness(id)
       .then(setData)
-      .catch(() => navigate("/"))
-      .finally(() => setLoading(false));
+      .catch(() => navigate("/"));
   }, [id, navigate]);
+
+  useEffect(() => {
+    loadData().finally(() => setLoading(false));
+  }, [loadData]);
+
+  // Re-fetch after a short delay to pick up background-synced data
+  useEffect(() => {
+    if (!data) return;
+    const timer = setTimeout(() => {
+      loadData();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDelete = async () => {
     if (!confirm("Tracking beenden?")) return;
@@ -48,12 +70,16 @@ export default function BusinessDetail() {
         <h1 className="text-2xl font-bold mb-2">
           {business.title || "Ohne Titel"}
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          {business.description}
-        </p>
+        <HtmlContent
+          html={business.description}
+          className="text-gray-600 dark:text-gray-400 prose prose-sm dark:prose-invert max-w-none"
+        />
         <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-500">
           {business.business_type && <span>{business.business_type}</span>}
           {business.author && <span>Urheber: {business.author}</span>}
+          {business.first_council && (
+            <span>Erstbehandelnder Rat: {business.first_council}</span>
+          )}
           {business.submission_date && (
             <span>
               Eingereicht:{" "}
@@ -67,6 +93,19 @@ export default function BusinessDetail() {
             </span>
           )}
         </div>
+        {business.federal_council_proposal && (
+          <div className="mt-3">
+            <span className={`inline-flex items-center text-sm font-medium px-3 py-1 rounded-full ${
+              business.federal_council_proposal.toLowerCase().includes("annahme")
+                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                : business.federal_council_proposal.toLowerCase().includes("ablehnung")
+                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                  : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+            }`}>
+              Antrag Bundesrat: {business.federal_council_proposal}
+            </span>
+          </div>
+        )}
         <div className="mt-3">
           <a
             href={parlamentUrl}
@@ -83,9 +122,32 @@ export default function BusinessDetail() {
       {business.submitted_text && (
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <h2 className="font-semibold mb-3">Motionstext</h2>
-          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
-            {business.submitted_text}
-          </p>
+          <HtmlContent
+            html={business.submitted_text}
+            className="text-sm text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none"
+          />
+        </div>
+      )}
+
+      {/* Begruendung */}
+      {business.reasoning && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h2 className="font-semibold mb-3">Begr&uuml;ndung</h2>
+          <HtmlContent
+            html={business.reasoning}
+            className="text-sm text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none"
+          />
+        </div>
+      )}
+
+      {/* Stellungnahme des Bundesrates */}
+      {business.federal_council_response && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h2 className="font-semibold mb-3">Stellungnahme des Bundesrates</h2>
+          <HtmlContent
+            html={business.federal_council_response}
+            className="text-sm text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none"
+          />
         </div>
       )}
 

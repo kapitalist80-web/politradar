@@ -67,6 +67,12 @@ async def sync_tracked_businesses():
                 inst.description = info.get("description") or inst.description
                 inst.status = new_status or inst.status
                 inst.business_type = info.get("business_type") or inst.business_type
+                inst.author = info.get("author") or inst.author
+                inst.submitted_text = info.get("submitted_text") or inst.submitted_text
+                inst.reasoning = info.get("reasoning") or inst.reasoning
+                inst.federal_council_response = info.get("federal_council_response") or inst.federal_council_response
+                inst.federal_council_proposal = info.get("federal_council_proposal") or inst.federal_council_proposal
+                inst.first_council = info.get("first_council") or inst.first_council
                 inst.last_api_sync = datetime.utcnow()
 
         db.commit()
