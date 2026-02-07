@@ -93,9 +93,20 @@ export const decideCandiate = (id, decision) =>
     body: JSON.stringify({ decision }),
   });
 
-// Parliament search / preview
+// Parliament search / preview / cache
+export const getRecentBusinesses = () => request("/parliament/recent");
+
 export const searchParliament = (q) =>
   request(`/parliament/search?q=${encodeURIComponent(q)}`);
 
 export const previewBusiness = (nr) =>
   request(`/parliament/preview/${encodeURIComponent(nr)}`);
+
+// Settings
+export const getEmailSettings = () => request("/settings/email");
+
+export const updateEmailSettings = (settings) =>
+  request("/settings/email", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });

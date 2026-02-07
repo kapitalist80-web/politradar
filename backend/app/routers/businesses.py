@@ -99,6 +99,7 @@ async def add_business(
         status=info.get("status"),
         business_type=info.get("business_type"),
         author=info.get("author"),
+        author_faction=info.get("author_faction"),
         submitted_text=info.get("submitted_text"),
         reasoning=info.get("reasoning"),
         federal_council_response=info.get("federal_council_response"),
@@ -159,12 +160,14 @@ async def _backfill_business(business_id: int, business_number: str) -> None:
 
         needs_backfill = not business.author or not business.submitted_text or \
             not business.reasoning or not business.federal_council_proposal or \
-            not business.first_council
+            not business.first_council or not business.author_faction
         if needs_backfill:
             info = await fetch_business(business.business_number)
             if info:
                 if info.get("author") and not business.author:
                     business.author = info["author"]
+                if info.get("author_faction") and not business.author_faction:
+                    business.author_faction = info["author_faction"]
                 if info.get("submitted_text") and not business.submitted_text:
                     business.submitted_text = info["submitted_text"]
                 if info.get("reasoning") and not business.reasoning:

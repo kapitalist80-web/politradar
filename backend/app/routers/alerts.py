@@ -6,13 +6,45 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Alert, User
+from ..models import Alert, TrackedBusiness, User
 from ..schemas import AlertOut
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
 # Alert types where only future events are relevant
 _SCHEDULED_TYPES = {"committee_scheduled", "debate_scheduled"}
+
+
+def _attach_business_titles(alerts: list[Alert], user_id: int, db: Session) -> list[dict]:
+    """Look up business titles for a list of alerts and return dicts with business_title."""
+    biz_numbers = list({a.business_number for a in alerts})
+    title_map: dict[str, str] = {}
+    if biz_numbers:
+        rows = (
+            db.query(TrackedBusiness.business_number, TrackedBusiness.title)
+            .filter(
+                TrackedBusiness.user_id == user_id,
+                TrackedBusiness.business_number.in_(biz_numbers),
+            )
+            .all()
+        )
+        for row in rows:
+            title_map[row.business_number] = row.title or ""
+
+    result = []
+    for a in alerts:
+        d = {
+            "id": a.id,
+            "business_number": a.business_number,
+            "business_title": title_map.get(a.business_number, ""),
+            "alert_type": a.alert_type,
+            "message": a.message,
+            "event_date": a.event_date,
+            "is_read": a.is_read,
+            "created_at": a.created_at,
+        }
+        result.append(d)
+    return result
 
 
 @router.get("", response_model=list[AlertOut])
@@ -41,7 +73,8 @@ def list_alerts(
         )
     )
 
-    return q.order_by(Alert.created_at.desc()).offset(skip).limit(limit).all()
+    alerts = q.order_by(Alert.created_at.desc()).offset(skip).limit(limit).all()
+    return _attach_business_titles(alerts, user.id, db)
 
 
 @router.patch("/{alert_id}/read", response_model=AlertOut)
@@ -60,7 +93,8 @@ def mark_read(
     alert.is_read = True
     db.commit()
     db.refresh(alert)
-    return alert
+    result = _attach_business_titles([alert], user.id, db)
+    return result[0]
 
 
 @router.post("/read-all")

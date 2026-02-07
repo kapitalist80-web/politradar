@@ -44,6 +44,7 @@ class TrackedBusinessOut(BaseModel):
     status: Optional[str] = None
     business_type: Optional[str] = None
     author: Optional[str] = None
+    author_faction: Optional[str] = None
     submitted_text: Optional[str] = None
     reasoning: Optional[str] = None
     federal_council_response: Optional[str] = None
@@ -78,6 +79,7 @@ class BusinessDetailOut(BaseModel):
 class AlertOut(BaseModel):
     id: int
     business_number: str
+    business_title: Optional[str] = None
     alert_type: str
     message: str
     event_date: Optional[datetime] = None
@@ -103,6 +105,12 @@ class MonitoringCandidateOut(BaseModel):
 
 class MonitoringDecision(BaseModel):
     decision: str  # "accepted" or "rejected"
+
+
+# --- Business Cache ---
+class BusinessCacheItem(BaseModel):
+    business_number: str
+    title: str = ""
 
 
 # --- Parliament Preview ---
@@ -138,3 +146,16 @@ class BusinessScheduleOut(BaseModel):
     business_number: str
     preconsultations: list[PreconsultationOut] = []
     sessions: list[SessionScheduleOut] = []
+
+
+# --- Email Settings ---
+class EmailSettingsOut(BaseModel):
+    email_alerts_enabled: bool = False
+    email_alert_types: list[str] = []
+
+    model_config = {"from_attributes": True}
+
+
+class EmailSettingsUpdate(BaseModel):
+    email_alerts_enabled: bool
+    email_alert_types: list[str]
