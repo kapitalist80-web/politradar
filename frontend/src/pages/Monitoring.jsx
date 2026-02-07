@@ -1,15 +1,27 @@
 import { useEffect, useState } from "react";
-import { decideCandiate, getMonitoringCandidates } from "../api/client";
+import {
+  decideCandiate,
+  getMonitoringBusinessTypes,
+  getMonitoringCandidates,
+} from "../api/client";
 
 export default function Monitoring() {
   const [candidates, setCandidates] = useState([]);
   const [tab, setTab] = useState("pending");
+  const [businessTypes, setBusinessTypes] = useState([]);
+  const [typeFilter, setTypeFilter] = useState("");
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getMonitoringBusinessTypes()
+      .then((types) => setBusinessTypes(types || []))
+      .catch(() => {});
+  }, []);
 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await getMonitoringCandidates(tab);
+      const data = await getMonitoringCandidates(tab, typeFilter);
       setCandidates(data || []);
     } catch {
       /* ignore */
@@ -20,7 +32,7 @@ export default function Monitoring() {
 
   useEffect(() => {
     load();
-  }, [tab]);
+  }, [tab, typeFilter]);
 
   const handleDecide = async (id, decision) => {
     await decideCandiate(id, decision);
@@ -32,24 +44,40 @@ export default function Monitoring() {
       <h1 className="text-2xl font-bold mb-6">Monitoring</h1>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
-        {["pending", "accepted", "rejected"].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === t
-                ? "bg-white dark:bg-gray-700 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {t === "pending"
-              ? "Offen"
-              : t === "accepted"
-                ? "Akzeptiert"
-                : "Abgelehnt"}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-4 mb-6">
+        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
+          {["pending", "accepted", "rejected"].map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                tab === t
+                  ? "bg-white dark:bg-gray-700 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {t === "pending"
+                ? "Offen"
+                : t === "accepted"
+                  ? "Akzeptiert"
+                  : "Abgelehnt"}
+            </button>
+          ))}
+        </div>
+
+        {/* Category filter */}
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200"
+        >
+          <option value="">Alle Kategorien</option>
+          {businessTypes.map((bt) => (
+            <option key={bt} value={bt}>
+              {bt}
+            </option>
+          ))}
+        </select>
       </div>
 
       {loading ? (

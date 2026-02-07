@@ -40,6 +40,11 @@ export default function AlertItem({ alert, onUpdated }) {
           <p className="text-sm text-gray-800 dark:text-gray-200">
             {alert.message}
           </p>
+          {alert.event_date && (
+            <p className="text-xs text-gray-400 mt-1">
+              Termin: {new Date(alert.event_date).toLocaleDateString("de-CH")}
+            </p>
+          )}
         </div>
         <time className="text-xs text-gray-400 whitespace-nowrap">
           {new Date(alert.created_at).toLocaleDateString("de-CH")}
