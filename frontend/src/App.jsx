@@ -7,8 +7,11 @@ import BusinessDetail from "./pages/BusinessDetail";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Monitoring from "./pages/Monitoring";
+import Parliamentarians from "./pages/Parliamentarians";
+import ParliamentarianProfile from "./pages/ParliamentarianProfile";
 import Register from "./pages/Register";
 import Settings from "./pages/Settings";
+import Votes from "./pages/Votes";
 
 export default function App() {
   return (
@@ -24,6 +27,9 @@ export default function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/add" element={<AddBusiness />} />
                 <Route path="/business/:id" element={<BusinessDetail />} />
+                <Route path="/parliamentarians" element={<Parliamentarians />} />
+                <Route path="/parliamentarian/:personNumber" element={<ParliamentarianProfile />} />
+                <Route path="/votes" element={<Votes />} />
                 <Route path="/alerts" element={<Alerts />} />
                 <Route path="/monitoring" element={<Monitoring />} />
                 <Route path="/settings" element={<Settings />} />

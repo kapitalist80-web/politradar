@@ -12,3 +12,8 @@ apscheduler==3.10.4
 pydantic[email-validator]==2.10.3
 python-dotenv==1.0.1
 swissparlpy==0.3.0
+
+# Parlamentarier-Profile & Abstimmungsprognose
+pandas>=2.1.0
+scikit-learn>=1.4.0
+numpy>=1.26.0

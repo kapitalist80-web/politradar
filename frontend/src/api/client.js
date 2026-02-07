@@ -110,3 +110,50 @@ export const updateEmailSettings = (settings) =>
     method: "PUT",
     body: JSON.stringify(settings),
   });
+
+// Parliamentarians
+export const getParliamentarians = (params = {}) => {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/parliamentarians${qs ? `?${qs}` : ""}`);
+};
+
+export const getParliamentarian = (personNumber) =>
+  request(`/parliamentarians/${personNumber}`);
+
+export const getParliamentarianVotes = (personNumber, limit = 50, offset = 0) =>
+  request(`/parliamentarians/${personNumber}/votes?limit=${limit}&offset=${offset}`);
+
+export const getParliamentarianStats = (personNumber) =>
+  request(`/parliamentarians/${personNumber}/stats`);
+
+// Committees
+export const getCommittees = (params = {}) => {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/committees${qs ? `?${qs}` : ""}`);
+};
+
+export const getCommitteeMembers = (committeeNumber) =>
+  request(`/committees/${committeeNumber}/members`);
+
+// Councils
+export const getCouncilMembers = (councilId) =>
+  request(`/councils/${councilId}/members`);
+
+// Parties & Parliamentary Groups
+export const getParties = () => request("/parties");
+export const getParlGroups = () => request("/parl-groups");
+
+// Votes
+export const getRecentVotes = (params = {}) => {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/votes/recent${qs ? `?${qs}` : ""}`);
+};
+
+export const getVoteDetail = (voteId) => request(`/votes/${voteId}`);
+
+// Business Treating Body & Predictions
+export const getTreatingBody = (businessId) =>
+  request(`/businesses/${businessId}/treating-body`);
+
+export const getVotePrediction = (businessId) =>
+  request(`/businesses/${businessId}/vote-prediction`);
