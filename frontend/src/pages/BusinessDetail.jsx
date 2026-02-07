@@ -94,7 +94,14 @@ export default function BusinessDetail() {
         />
         <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-500">
           {business.business_type && <span>{business.business_type}</span>}
-          {business.author && <span>Urheber: {business.author}</span>}
+          {business.author && (
+            <span>
+              Urheber: {business.author}
+              {business.author_faction && (
+                <span className="ml-1 text-gray-400">({business.author_faction})</span>
+              )}
+            </span>
+          )}
           {business.first_council && (
             <span>Erstbehandelnder Rat: {business.first_council}</span>
           )}

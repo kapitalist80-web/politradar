@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import alerts, auth, businesses, monitoring, parliament
+from .routers import alerts, auth, businesses, monitoring, parliament, settings_router
 from .services.scheduler import fetch_monitoring_candidates, sync_committee_schedules, sync_tracked_businesses
 
 logging.basicConfig(level=logging.INFO)
@@ -50,6 +50,21 @@ async def lifespan(app: FastAPI):
             conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN first_council VARCHAR(100)"))
             conn.commit()
             logger.info("Added first_council column to tracked_businesses")
+        if "author_faction" not in columns:
+            conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN author_faction VARCHAR(255)"))
+            conn.commit()
+            logger.info("Added author_faction column to tracked_businesses")
+
+        # User table migrations
+        user_columns = [c["name"] for c in inspector.get_columns("users")]
+        if "email_alerts_enabled" not in user_columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN email_alerts_enabled BOOLEAN DEFAULT FALSE"))
+            conn.commit()
+            logger.info("Added email_alerts_enabled column to users")
+        if "email_alert_types" not in user_columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN email_alert_types VARCHAR(500) DEFAULT 'status_change,committee_scheduled,debate_scheduled'"))
+            conn.commit()
+            logger.info("Added email_alert_types column to users")
 
     logger.info("Database tables ensured")
 
@@ -94,6 +109,7 @@ app.include_router(businesses.router)
 app.include_router(alerts.router)
 app.include_router(monitoring.router)
 app.include_router(parliament.router)
+app.include_router(settings_router.router)
 
 
 @app.get("/api/health")

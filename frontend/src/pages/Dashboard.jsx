@@ -10,8 +10,8 @@ export default function Dashboard() {
   const [businesses, setBusinesses] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState("business_number");
-  const [sortDir, setSortDir] = useState("asc");
+  const [sortKey, setSortKey] = useState("submission_date");
+  const [sortDir, setSortDir] = useState("desc");
 
   const load = async () => {
     try {
@@ -122,7 +122,12 @@ export default function Dashboard() {
                       Nummer <SortIcon col="business_number" />
                     </th>
                     <th className="px-4 py-3">Titel</th>
-                    <th className="px-4 py-3">Status</th>
+                    <th
+                      className="px-4 py-3 cursor-pointer select-none hover:text-swiss-red"
+                      onClick={() => handleSort("status")}
+                    >
+                      Status <SortIcon col="status" />
+                    </th>
                     <th className="px-4 py-3">Typ</th>
                     <th
                       className="px-4 py-3 cursor-pointer select-none hover:text-swiss-red"

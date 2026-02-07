@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import httpx
 import swissparlpy as spp
@@ -13,6 +13,11 @@ logger = logging.getLogger(__name__)
 BASE = settings.PARLIAMENT_API_BASE
 TIMEOUT = 30.0
 MAX_RETRIES = 3
+
+# In-memory cache for recent businesses (title + number)
+_recent_businesses_cache: list[dict] = []
+_recent_businesses_cache_time: datetime | None = None
+_CACHE_TTL_HOURS = 6
 
 
 async def _get(url: str, params: dict | None = None) -> dict | None:
@@ -52,7 +57,17 @@ async def fetch_business(business_number: str) -> dict | None:
         return None
 
     item = results[0] if isinstance(results, list) else results
-    return _parse_business(item, business_number)
+    parsed = _parse_business(item, business_number)
+
+    # Fetch author faction in parallel
+    try:
+        faction = await fetch_author_faction(business_number)
+        if faction:
+            parsed["author_faction"] = faction
+    except Exception:
+        logger.debug("Could not fetch faction for %s", business_number)
+
+    return parsed
 
 
 def _parse_business(item: dict, business_number: str) -> dict:
@@ -82,6 +97,112 @@ def _parse_business(item: dict, business_number: str) -> dict:
         "first_council": item.get("FirstCouncil1Name", ""),
         "submission_date": submission_date,
     }
+
+
+async def fetch_author_faction(business_number: str) -> str | None:
+    """Fetch the parliamentary faction (Fraktion) of the business author via BusinessRole."""
+    url = f"{BASE}/BusinessRole"
+    params = {
+        "$filter": f"BusinessShortNumber eq '{business_number}' and Language eq 'DE'",
+        "$format": "json",
+    }
+    data = await _get(url, params)
+    if not data:
+        return None
+
+    results = data.get("d", {}).get("results", []) if isinstance(data.get("d"), dict) else []
+    if not results:
+        results = data.get("d", []) if isinstance(data.get("d"), list) else []
+
+    # Find a role that has a MemberCouncilNumber (the author)
+    member_council_number = None
+    for role in results:
+        mcn = role.get("MemberCouncilNumber")
+        if mcn:
+            member_council_number = mcn
+            break
+
+    if not member_council_number:
+        return None
+
+    # Fetch the MemberCouncil to get ParlGroupName
+    mc_url = f"{BASE}/MemberCouncil"
+    mc_params = {
+        "$filter": f"ID eq {member_council_number} and Language eq 'DE'",
+        "$format": "json",
+        "$select": "ParlGroupName,ParlGroupAbbreviation,PartyName",
+    }
+    mc_data = await _get(mc_url, mc_params)
+    if not mc_data:
+        return None
+
+    mc_results = mc_data.get("d", {}).get("results", []) if isinstance(mc_data.get("d"), dict) else []
+    if not mc_results:
+        mc_results = mc_data.get("d", []) if isinstance(mc_data.get("d"), list) else []
+    if not mc_results:
+        return None
+
+    member = mc_results[0] if isinstance(mc_results, list) else mc_results
+    faction = member.get("ParlGroupName") or member.get("PartyName") or ""
+    return faction if faction else None
+
+
+async def fetch_recent_businesses_cached() -> list[dict]:
+    """Return cached list of business_number + title for the last 12 months.
+
+    The cache is refreshed every _CACHE_TTL_HOURS hours to avoid repeated
+    expensive API calls.
+    """
+    global _recent_businesses_cache, _recent_businesses_cache_time
+
+    now = datetime.utcnow()
+    if (
+        _recent_businesses_cache
+        and _recent_businesses_cache_time
+        and (now - _recent_businesses_cache_time).total_seconds() < _CACHE_TTL_HOURS * 3600
+    ):
+        return _recent_businesses_cache
+
+    since = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+    url = f"{BASE}/Business"
+    all_results: list[dict] = []
+    skip = 0
+    batch_size = 500
+
+    while True:
+        params = {
+            "$filter": f"SubmissionDate ge datetime'{since}T00:00:00' and Language eq 'DE'",
+            "$format": "json",
+            "$select": "BusinessShortNumber,Title",
+            "$orderby": "SubmissionDate desc",
+            "$top": str(batch_size),
+            "$skip": str(skip),
+        }
+        data = await _get(url, params)
+        if not data:
+            break
+
+        results = data.get("d", {}).get("results", []) if isinstance(data.get("d"), dict) else []
+        if not results:
+            results = data.get("d", []) if isinstance(data.get("d"), list) else []
+        if not results:
+            break
+
+        for item in results:
+            nr = item.get("BusinessShortNumber", "")
+            if nr:
+                all_results.append({
+                    "business_number": nr,
+                    "title": item.get("Title", ""),
+                })
+        if len(results) < batch_size:
+            break
+        skip += batch_size
+
+    _recent_businesses_cache = all_results
+    _recent_businesses_cache_time = now
+    logger.info("Recent businesses cache refreshed: %d entries", len(all_results))
+    return all_results
 
 
 async def search_businesses(query: str) -> list[dict]:

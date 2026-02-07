@@ -32,6 +32,9 @@ export default function AlertItem({ alert, onUpdated }) {
             </span>
             <span className="text-xs text-gray-500">
               {alert.business_number}
+              {alert.business_title && (
+                <span className="ml-1 text-gray-400">– {alert.business_title}</span>
+              )}
             </span>
             {!alert.is_read && (
               <span className="w-2 h-2 rounded-full bg-swiss-red flex-shrink-0" />

@@ -2,10 +2,18 @@ from fastapi import APIRouter, Depends, Query
 
 from ..auth import get_current_user
 from ..models import User
-from ..schemas import ParliamentPreview
-from ..services.parliament_api import fetch_business, search_businesses
+from ..schemas import BusinessCacheItem, ParliamentPreview
+from ..services.parliament_api import fetch_business, fetch_recent_businesses_cached, search_businesses
 
 router = APIRouter(prefix="/api/parliament", tags=["parliament"])
+
+
+@router.get("/recent", response_model=list[BusinessCacheItem])
+async def recent_businesses(
+    user: User = Depends(get_current_user),
+):
+    """Return cached business_number + title for the last 12 months."""
+    return await fetch_recent_businesses_cached()
 
 
 @router.get("/search", response_model=list[ParliamentPreview])

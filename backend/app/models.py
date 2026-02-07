@@ -22,6 +22,8 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
     password_hash = Column(String(255), nullable=False)
+    email_alerts_enabled = Column(Boolean, default=False)
+    email_alert_types = Column(String(500), default="status_change,committee_scheduled,debate_scheduled")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tracked_businesses = relationship("TrackedBusiness", back_populates="user")
@@ -39,6 +41,7 @@ class TrackedBusiness(Base):
     status = Column(String(100))
     business_type = Column(String(100))
     author = Column(String(500))
+    author_faction = Column(String(255))
     submitted_text = Column(Text)
     reasoning = Column(Text)
     federal_council_response = Column(Text)
