@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI
+from fastapi import BackgroundTasks, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
@@ -150,3 +150,51 @@ app.include_router(predictions.router)
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+# --- Manual sync endpoints ---
+
+from .auth import get_current_user
+from .models import User
+
+
+@app.post("/api/sync/parliamentarians")
+async def trigger_sync_parliamentarians(
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+):
+    """Manually trigger parliamentarian + party + canton sync."""
+    background_tasks.add_task(sync_parliamentarians)
+    return {"status": "started", "job": "sync_parliamentarians"}
+
+
+@app.post("/api/sync/committees")
+async def trigger_sync_committees(
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+):
+    """Manually trigger committee + membership sync."""
+    background_tasks.add_task(sync_committees)
+    return {"status": "started", "job": "sync_committees"}
+
+
+@app.post("/api/sync/voting-data")
+async def trigger_sync_voting_data(
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+):
+    """Manually trigger voting data sync (can take several minutes)."""
+    background_tasks.add_task(sync_voting_data)
+    return {"status": "started", "job": "sync_voting_data"}
+
+
+@app.post("/api/sync/all")
+async def trigger_sync_all(
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+):
+    """Trigger all parliament data syncs (parliamentarians, committees, voting data)."""
+    background_tasks.add_task(sync_parliamentarians)
+    background_tasks.add_task(sync_committees)
+    background_tasks.add_task(sync_voting_data)
+    return {"status": "started", "jobs": ["sync_parliamentarians", "sync_committees", "sync_voting_data"]}

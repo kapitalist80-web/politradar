@@ -157,3 +157,16 @@ export const getTreatingBody = (businessId) =>
 
 export const getVotePrediction = (businessId) =>
   request(`/businesses/${businessId}/vote-prediction`);
+
+// Manual Sync
+export const triggerSyncParliamentarians = () =>
+  request("/sync/parliamentarians", { method: "POST" });
+
+export const triggerSyncCommittees = () =>
+  request("/sync/committees", { method: "POST" });
+
+export const triggerSyncVotingData = () =>
+  request("/sync/voting-data", { method: "POST" });
+
+export const triggerSyncAll = () =>
+  request("/sync/all", { method: "POST" });

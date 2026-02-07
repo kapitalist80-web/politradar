@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getEmailSettings, updateEmailSettings } from "../api/client";
+import {
+  getEmailSettings,
+  updateEmailSettings,
+  triggerSyncParliamentarians,
+  triggerSyncCommittees,
+  triggerSyncVotingData,
+  triggerSyncAll,
+} from "../api/client";
 
 const ALERT_TYPE_OPTIONS = [
   { value: "status_change", label: "Statusaenderungen" },
@@ -20,6 +27,7 @@ export default function Settings() {
   const [emailLoading, setEmailLoading] = useState(true);
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailSaved, setEmailSaved] = useState(false);
+  const [syncStatus, setSyncStatus] = useState({});
 
   useEffect(() => {
     getEmailSettings()
@@ -66,6 +74,18 @@ export default function Settings() {
       /* ignore */
     } finally {
       setEmailSaving(false);
+    }
+  };
+
+  const handleSync = async (name, fn) => {
+    setSyncStatus((prev) => ({ ...prev, [name]: "running" }));
+    try {
+      await fn();
+      setSyncStatus((prev) => ({ ...prev, [name]: "done" }));
+      setTimeout(() => setSyncStatus((prev) => ({ ...prev, [name]: null })), 5000);
+    } catch {
+      setSyncStatus((prev) => ({ ...prev, [name]: "error" }));
+      setTimeout(() => setSyncStatus((prev) => ({ ...prev, [name]: null })), 5000);
     }
   };
 
@@ -185,6 +205,78 @@ export default function Settings() {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Data Sync */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mt-6">
+        <h2 className="font-semibold mb-4">Datensynchronisation</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Parlamentsdaten werden automatisch synchronisiert (Parlamentarier &amp; Kommissionen monatlich, Abstimmungen woechentlich).
+          Hier kannst du die Synchronisation manuell ausloesen.
+        </p>
+        <div className="space-y-3">
+          <SyncButton
+            label="Alle synchronisieren"
+            description="Parlamentarier, Kommissionen und Abstimmungsdaten"
+            status={syncStatus.all}
+            onClick={() => handleSync("all", triggerSyncAll)}
+          />
+          <SyncButton
+            label="Parlamentarier"
+            description="Ratsmitglieder, Parteien, Fraktionen, Kantone"
+            status={syncStatus.parliamentarians}
+            onClick={() => handleSync("parliamentarians", triggerSyncParliamentarians)}
+          />
+          <SyncButton
+            label="Kommissionen"
+            description="Kommissionen und Mitgliedschaften"
+            status={syncStatus.committees}
+            onClick={() => handleSync("committees", triggerSyncCommittees)}
+          />
+          <SyncButton
+            label="Abstimmungsdaten"
+            description="Abstimmungen und individuelle Stimmabgaben (kann mehrere Minuten dauern)"
+            status={syncStatus.votingData}
+            onClick={() => handleSync("votingData", triggerSyncVotingData)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SyncButton({ label, description, status, onClick }) {
+  return (
+    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+      <div>
+        <p className="font-medium text-sm">{label}</p>
+        <p className="text-xs text-gray-500">{description}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        {status === "done" && (
+          <span className="text-xs text-green-600 dark:text-green-400">Gestartet</span>
+        )}
+        {status === "error" && (
+          <span className="text-xs text-red-600 dark:text-red-400">Fehler</span>
+        )}
+        <button
+          onClick={onClick}
+          disabled={status === "running"}
+          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            status === "running"
+              ? "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
+              : "bg-swiss-red text-white hover:bg-swiss-dark"
+          }`}
+        >
+          {status === "running" ? (
+            <span className="flex items-center gap-1.5">
+              <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
+              Laeuft...
+            </span>
+          ) : (
+            "Starten"
+          )}
+        </button>
       </div>
     </div>
   );
