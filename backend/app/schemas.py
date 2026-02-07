@@ -50,6 +50,7 @@ class TrackedBusinessOut(BaseModel):
     federal_council_proposal: Optional[str] = None
     first_council: Optional[str] = None
     submission_date: Optional[datetime] = None
+    next_event_date: Optional[datetime] = None
     last_api_sync: Optional[datetime] = None
     created_at: datetime
 
@@ -79,6 +80,7 @@ class AlertOut(BaseModel):
     business_number: str
     alert_type: str
     message: str
+    event_date: Optional[datetime] = None
     is_read: bool
     created_at: datetime
 

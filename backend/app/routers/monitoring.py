@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import distinct
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -11,9 +12,25 @@ from ..schemas import MonitoringCandidateOut, MonitoringDecision
 router = APIRouter(prefix="/api/monitoring", tags=["monitoring"])
 
 
+@router.get("/business-types")
+def list_business_types(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return all distinct business_type values present in monitoring candidates."""
+    rows = (
+        db.query(distinct(MonitoringCandidate.business_type))
+        .filter(MonitoringCandidate.business_type.isnot(None))
+        .order_by(MonitoringCandidate.business_type)
+        .all()
+    )
+    return [r[0] for r in rows if r[0]]
+
+
 @router.get("", response_model=list[MonitoringCandidateOut])
 def list_candidates(
     decision: str = Query("pending"),
+    business_type: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     user: User = Depends(get_current_user),
@@ -22,6 +39,8 @@ def list_candidates(
     q = db.query(MonitoringCandidate)
     if decision:
         q = q.filter(MonitoringCandidate.decision == decision)
+    if business_type:
+        q = q.filter(MonitoringCandidate.business_type == business_type)
     return (
         q.order_by(MonitoringCandidate.submission_date.desc())
         .offset(skip)

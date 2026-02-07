@@ -82,6 +82,7 @@ class Alert(Base):
         nullable=False,
     )
     message = Column(Text, nullable=False)
+    event_date = Column(DateTime, nullable=True)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 

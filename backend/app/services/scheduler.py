@@ -191,6 +191,7 @@ async def sync_committee_schedules():
                         user_id=t.user_id,
                         business_number=biz.business_number,
                         alert_type="committee_scheduled",
+                        event_date=event_date,
                         message=f"Geschaeft {biz.business_number}: {description} (Datum: {date_str})",
                     )
                     db.add(alert)
@@ -247,6 +248,7 @@ async def sync_committee_schedules():
                         user_id=t.user_id,
                         business_number=biz.business_number,
                         alert_type="debate_scheduled",
+                        event_date=event_date,
                         message=f"Geschaeft {biz.business_number}: {description} (Datum: {date_str})",
                     )
                     db.add(alert)

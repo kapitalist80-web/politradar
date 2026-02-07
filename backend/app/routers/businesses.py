@@ -1,7 +1,9 @@
 import logging
 import re
+from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -22,12 +24,38 @@ def list_businesses(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return (
+    businesses = (
         db.query(TrackedBusiness)
         .filter(TrackedBusiness.user_id == user.id)
         .order_by(TrackedBusiness.created_at.desc())
         .all()
     )
+
+    if not businesses:
+        return businesses
+
+    # Compute next future event date per business_number
+    now = datetime.utcnow()
+    biz_numbers = list({b.business_number for b in businesses})
+    next_dates = (
+        db.query(
+            BusinessEvent.business_number,
+            func.min(BusinessEvent.event_date).label("next_event_date"),
+        )
+        .filter(
+            BusinessEvent.business_number.in_(biz_numbers),
+            BusinessEvent.event_date > now,
+        )
+        .group_by(BusinessEvent.business_number)
+        .all()
+    )
+    date_map = {row.business_number: row.next_event_date for row in next_dates}
+
+    # Attach next_event_date to each business object
+    for biz in businesses:
+        biz.next_event_date = date_map.get(biz.business_number)
+
+    return businesses
 
 
 @router.post("", response_model=TrackedBusinessOut, status_code=status.HTTP_201_CREATED)

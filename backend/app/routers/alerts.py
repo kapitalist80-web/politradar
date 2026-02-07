@@ -1,4 +1,7 @@
+from datetime import date, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -7,6 +10,9 @@ from ..models import Alert, User
 from ..schemas import AlertOut
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
+
+# Alert types where only future events are relevant
+_SCHEDULED_TYPES = {"committee_scheduled", "debate_scheduled"}
 
 
 @router.get("", response_model=list[AlertOut])
@@ -23,6 +29,18 @@ def list_alerts(
         q = q.filter(Alert.alert_type == alert_type)
     if is_read is not None:
         q = q.filter(Alert.is_read == is_read)
+
+    # Only show scheduled alerts (committee/debate) whose event is in the future.
+    # Non-scheduled types (status_change, new_document, vote_result) are always shown.
+    today = datetime.combine(date.today(), datetime.min.time())
+    q = q.filter(
+        or_(
+            Alert.alert_type.notin_(_SCHEDULED_TYPES),
+            Alert.event_date >= today,
+            Alert.event_date.is_(None),
+        )
+    )
+
     return q.order_by(Alert.created_at.desc()).offset(skip).limit(limit).all()
 
 

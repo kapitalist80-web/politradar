@@ -78,8 +78,14 @@ export const markAllAlertsRead = () =>
   request("/alerts/read-all", { method: "POST" });
 
 // Monitoring
-export const getMonitoringCandidates = (decision = "pending") =>
-  request(`/monitoring?decision=${decision}`);
+export const getMonitoringCandidates = (decision = "pending", businessType = "") => {
+  const params = new URLSearchParams({ decision });
+  if (businessType) params.set("business_type", businessType);
+  return request(`/monitoring?${params.toString()}`);
+};
+
+export const getMonitoringBusinessTypes = () =>
+  request("/monitoring/business-types");
 
 export const decideCandiate = (id, decision) =>
   request(`/monitoring/${id}`, {
