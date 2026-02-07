@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { deleteBusiness, getBusiness, getBusinessSchedule } from "../api/client";
+import { deleteBusiness, getBusiness, getBusinessSchedule, getTreatingBody, getVotePrediction } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
+import CommitteePanel from "../components/CommitteePanel";
+import FactionBreakdown from "../components/FactionBreakdown";
 
 function HtmlContent({ html, className = "" }) {
   if (!html) return null;
@@ -26,6 +28,10 @@ export default function BusinessDetail() {
   const [data, setData] = useState(null);
   const [schedule, setSchedule] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [treatingBody, setTreatingBody] = useState(null);
+  const [treatingBodyLoading, setTreatingBodyLoading] = useState(true);
+  const [prediction, setPrediction] = useState(null);
+  const [predictionLoading, setPredictionLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -41,6 +47,14 @@ export default function BusinessDetail() {
       .then(setSchedule)
       .catch(() => setSchedule(null))
       .finally(() => setScheduleLoading(false));
+    getTreatingBody(id)
+      .then(setTreatingBody)
+      .catch(() => setTreatingBody(null))
+      .finally(() => setTreatingBodyLoading(false));
+    getVotePrediction(id)
+      .then(setPrediction)
+      .catch(() => setPrediction(null))
+      .finally(() => setPredictionLoading(false));
   }, [loadData, id]);
 
   // Re-fetch after a short delay to pick up background-synced data
@@ -224,6 +238,12 @@ export default function BusinessDetail() {
           </div>
         )}
       </div>
+
+      {/* Behandelndes Gremium */}
+      <CommitteePanel treatingBody={treatingBody} loading={treatingBodyLoading} />
+
+      {/* Abstimmungsprognose */}
+      <FactionBreakdown prediction={prediction} loading={predictionLoading} />
 
       {/* Motionstext */}
       {business.submitted_text && (

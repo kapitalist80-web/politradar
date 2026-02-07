@@ -7,7 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .routers import alerts, auth, businesses, monitoring, parliament, settings_router
+from .routers import parliamentarians, committees_router, votes_router, predictions
 from .services.scheduler import fetch_monitoring_candidates, sync_committee_schedules, sync_tracked_businesses
+from .services.parliamentarian_sync import sync_parliamentarians
+from .services.committee_sync import sync_committees
+from .services.voting_sync import sync_voting_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -87,6 +91,30 @@ async def lifespan(app: FastAPI):
         hours=settings.SYNC_INTERVAL_HOURS,
         id="sync_committee_schedules",
     )
+    # Monthly sync for parliamentarians and committees (1st of each month at 03:00)
+    scheduler.add_job(
+        sync_parliamentarians,
+        "cron",
+        day=1,
+        hour=3,
+        id="sync_parliamentarians",
+    )
+    scheduler.add_job(
+        sync_committees,
+        "cron",
+        day=1,
+        hour=3,
+        minute=30,
+        id="sync_committees_data",
+    )
+    # Weekly voting data sync (Sunday at 04:00)
+    scheduler.add_job(
+        sync_voting_data,
+        "cron",
+        day_of_week="sun",
+        hour=4,
+        id="sync_voting_data",
+    )
     scheduler.start()
     logger.info("Scheduler started")
     yield
@@ -110,6 +138,13 @@ app.include_router(alerts.router)
 app.include_router(monitoring.router)
 app.include_router(parliament.router)
 app.include_router(settings_router.router)
+app.include_router(parliamentarians.router)
+app.include_router(committees_router.router)
+app.include_router(committees_router.councils_router)
+app.include_router(committees_router.parties_router)
+app.include_router(committees_router.parl_groups_router)
+app.include_router(votes_router.router)
+app.include_router(predictions.router)
 
 
 @app.get("/api/health")

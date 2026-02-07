@@ -159,3 +159,173 @@ class EmailSettingsOut(BaseModel):
 class EmailSettingsUpdate(BaseModel):
     email_alerts_enabled: bool
     email_alert_types: list[str]
+
+
+# --- Parliamentarians ---
+class ParliamentarianOut(BaseModel):
+    id: int
+    person_number: int
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    gender: Optional[str] = None
+    canton_name: Optional[str] = None
+    canton_abbreviation: Optional[str] = None
+    council_id: Optional[int] = None
+    council_name: Optional[str] = None
+    party_name: Optional[str] = None
+    party_abbreviation: Optional[str] = None
+    parl_group_name: Optional[str] = None
+    parl_group_abbreviation: Optional[str] = None
+    active: bool = True
+    photo_url: Optional[str] = None
+    biografie_url: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class ParliamentarianDetailOut(ParliamentarianOut):
+    date_of_birth: Optional[str] = None
+    canton_id: Optional[int] = None
+    party_id: Optional[int] = None
+    parl_group_id: Optional[int] = None
+    membership_start: Optional[str] = None
+    membership_end: Optional[str] = None
+    last_sync: Optional[datetime] = None
+
+
+class ParliamentarianStatsOut(BaseModel):
+    person_number: int
+    total_votes: int = 0
+    yes_rate: float = 0.0
+    no_rate: float = 0.0
+    abstention_rate: float = 0.0
+    absence_rate: float = 0.0
+    party_loyalty_score: float = 0.0
+    parl_group_loyalty_score: float = 0.0
+
+
+# --- Parties ---
+class PartyOut(BaseModel):
+    id: int
+    party_number: int
+    party_name: Optional[str] = None
+    party_abbreviation: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+# --- Parliamentary Groups ---
+class ParlGroupOut(BaseModel):
+    id: int
+    parl_group_number: int
+    parl_group_name: Optional[str] = None
+    parl_group_abbreviation: Optional[str] = None
+    associated_parties: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+# --- Committees ---
+class CommitteeOut(BaseModel):
+    id: int
+    committee_number: int
+    committee_name: Optional[str] = None
+    committee_abbreviation: Optional[str] = None
+    council_id: Optional[int] = None
+    committee_type: Optional[str] = None
+    is_active: bool = True
+
+    model_config = {"from_attributes": True}
+
+
+class CommitteeMemberOut(BaseModel):
+    person_number: int
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    party_abbreviation: Optional[str] = None
+    parl_group_abbreviation: Optional[str] = None
+    canton_abbreviation: Optional[str] = None
+    function: Optional[str] = None
+    photo_url: Optional[str] = None
+
+
+class CommitteeDetailOut(CommitteeOut):
+    members: list[CommitteeMemberOut] = []
+
+
+# --- Votes ---
+class VoteOut(BaseModel):
+    id: int
+    vote_id: int
+    business_number: Optional[str] = None
+    business_title: Optional[str] = None
+    subject: Optional[str] = None
+    meaning_yes: Optional[str] = None
+    meaning_no: Optional[str] = None
+    vote_date: Optional[datetime] = None
+    council_id: Optional[int] = None
+    total_yes: Optional[int] = None
+    total_no: Optional[int] = None
+    total_abstain: Optional[int] = None
+    total_not_voted: Optional[int] = None
+    result: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class VotingOut(BaseModel):
+    person_number: int
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    decision: str
+    party_abbreviation: Optional[str] = None
+    parl_group_abbreviation: Optional[str] = None
+    canton_abbreviation: Optional[str] = None
+
+
+class VoteDetailOut(VoteOut):
+    votings: list[VotingOut] = []
+
+
+# --- Vote Predictions ---
+class PredictionMemberOut(BaseModel):
+    person_number: int
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    party_abbreviation: Optional[str] = None
+    parl_group_abbreviation: Optional[str] = None
+    canton_abbreviation: Optional[str] = None
+    predicted_yes: float = 0.0
+    predicted_no: float = 0.0
+    predicted_abstain: float = 0.0
+    confidence: float = 0.0
+
+
+class FactionPredictionOut(BaseModel):
+    parl_group_abbreviation: str
+    parl_group_name: str
+    member_count: int
+    avg_yes: float = 0.0
+    avg_no: float = 0.0
+
+
+class VotePredictionOut(BaseModel):
+    business_number: str
+    committee_name: Optional[str] = None
+    committee_abbreviation: Optional[str] = None
+    overall_yes_probability: float = 0.0
+    expected_result: str = "Unsicher"
+    model_version: Optional[str] = None
+    disclaimer: str = "Basierend auf historischem Abstimmungsverhalten und Fraktionszugehörigkeit"
+    faction_breakdown: list[FactionPredictionOut] = []
+    member_predictions: list[PredictionMemberOut] = []
+
+
+# --- Treating Body ---
+class TreatingBodyOut(BaseModel):
+    business_number: str
+    next_body_name: Optional[str] = None
+    next_body_abbreviation: Optional[str] = None
+    next_body_type: Optional[str] = None  # "committee" or "council"
+    next_date: Optional[str] = None
+    members: list[CommitteeMemberOut] = []
