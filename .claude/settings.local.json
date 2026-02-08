@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(source ../venv/bin/activate)",
+      "Bash(alembic upgrade:*)",
+      "Bash(PYTHONPATH=/home/michelbossong/polit_monitor/backend alembic upgrade:*)",
+      "Bash(PYTHONPATH=/home/michelbossong/polit_monitor/backend alembic current:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git rebase:*)"
+    ]
+  }
+}
