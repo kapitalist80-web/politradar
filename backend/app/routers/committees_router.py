@@ -149,4 +149,19 @@ def list_parl_groups(
     db: Session = Depends(get_db),
 ):
     from ..models import ParlGroup
-    return db.query(ParlGroup).order_by(ParlGroup.parl_group_name).all()
+    # Only return factions that have active parliamentarians
+    represented = (
+        db.query(Parliamentarian.parl_group_abbreviation)
+        .filter(Parliamentarian.active == True)
+        .distinct()
+        .all()
+    )
+    represented_abbrevs = {r[0] for r in represented if r[0]}
+    if not represented_abbrevs:
+        return db.query(ParlGroup).order_by(ParlGroup.parl_group_name).all()
+    return (
+        db.query(ParlGroup)
+        .filter(ParlGroup.parl_group_abbreviation.in_(represented_abbrevs))
+        .order_by(ParlGroup.parl_group_name)
+        .all()
+    )

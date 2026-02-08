@@ -148,61 +148,97 @@ async def fetch_author_faction(business_number: str) -> str | None:
 
 
 async def fetch_recent_businesses_cached() -> list[dict]:
-    """Return cached list of business_number + title for the last 12 months.
+    """Return cached list of business_number + title from the database.
 
-    The cache is refreshed every _CACHE_TTL_HOURS hours to avoid repeated
-    expensive API calls.
+    Falls back to API if the DB cache is empty.
     """
-    global _recent_businesses_cache, _recent_businesses_cache_time
+    from ..database import SessionLocal
+    from ..models import CachedBusiness
 
-    now = datetime.utcnow()
-    if (
-        _recent_businesses_cache
-        and _recent_businesses_cache_time
-        and (now - _recent_businesses_cache_time).total_seconds() < _CACHE_TTL_HOURS * 3600
-    ):
-        return _recent_businesses_cache
+    db = SessionLocal()
+    try:
+        count = db.query(CachedBusiness).count()
+        if count > 0:
+            rows = db.query(CachedBusiness).order_by(CachedBusiness.business_number.desc()).all()
+            return [{"business_number": r.business_number, "title": r.title or ""} for r in rows]
+    finally:
+        db.close()
 
-    since = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+    # Fallback: fetch from API and return (without persisting)
+    return await _fetch_businesses_from_api()
+
+
+async def _fetch_businesses_from_api() -> list[dict]:
+    """Fetch businesses for years 25/26 from parliament API."""
     url = f"{BASE}/Business"
     all_results: list[dict] = []
-    skip = 0
-    batch_size = 500
 
-    while True:
-        params = {
-            "$filter": f"SubmissionDate ge datetime'{since}T00:00:00' and Language eq 'DE'",
-            "$format": "json",
-            "$select": "BusinessShortNumber,Title",
-            "$orderby": "SubmissionDate desc",
-            "$top": str(batch_size),
-            "$skip": str(skip),
-        }
-        data = await _get(url, params)
-        if not data:
-            break
+    for year_prefix in ["25.", "26."]:
+        skip = 0
+        batch_size = 500
+        while True:
+            params = {
+                "$filter": f"startswith(BusinessShortNumber, '{year_prefix}') and Language eq 'DE'",
+                "$format": "json",
+                "$select": "BusinessShortNumber,Title",
+                "$orderby": "BusinessShortNumber desc",
+                "$top": str(batch_size),
+                "$skip": str(skip),
+            }
+            data = await _get(url, params)
+            if not data:
+                break
 
-        results = data.get("d", {}).get("results", []) if isinstance(data.get("d"), dict) else []
-        if not results:
-            results = data.get("d", []) if isinstance(data.get("d"), list) else []
-        if not results:
-            break
+            results = data.get("d", {}).get("results", []) if isinstance(data.get("d"), dict) else []
+            if not results:
+                results = data.get("d", []) if isinstance(data.get("d"), list) else []
+            if not results:
+                break
 
-        for item in results:
-            nr = item.get("BusinessShortNumber", "")
-            if nr:
-                all_results.append({
-                    "business_number": nr,
-                    "title": item.get("Title", ""),
-                })
-        if len(results) < batch_size:
-            break
-        skip += batch_size
+            for item in results:
+                nr = item.get("BusinessShortNumber", "")
+                if nr:
+                    all_results.append({
+                        "business_number": nr,
+                        "title": item.get("Title", ""),
+                    })
+            if len(results) < batch_size:
+                break
+            skip += batch_size
 
-    _recent_businesses_cache = all_results
-    _recent_businesses_cache_time = now
-    logger.info("Recent businesses cache refreshed: %d entries", len(all_results))
+    logger.info("Fetched %d businesses from API for years 25/26", len(all_results))
     return all_results
+
+
+async def sync_cached_businesses():
+    """Fetch businesses for years 25/26 from API and store in DB."""
+    from ..database import SessionLocal
+    from ..models import CachedBusiness
+
+    businesses = await _fetch_businesses_from_api()
+    if not businesses:
+        logger.warning("No businesses fetched from API for sync")
+        return
+
+    db = SessionLocal()
+    try:
+        existing = {r.business_number for r in db.query(CachedBusiness.business_number).all()}
+        new_count = 0
+        for b in businesses:
+            if b["business_number"] not in existing:
+                db.add(CachedBusiness(
+                    business_number=b["business_number"],
+                    title=b.get("title", ""),
+                ))
+                new_count += 1
+        db.commit()
+        logger.info("Business cache sync complete: %d new, %d total", new_count, len(existing) + new_count)
+    except Exception:
+        db.rollback()
+        logger.exception("Error syncing business cache")
+        raise
+    finally:
+        db.close()
 
 
 async def search_businesses(query: str) -> list[dict]:

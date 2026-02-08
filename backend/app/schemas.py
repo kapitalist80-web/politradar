@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr
@@ -184,12 +184,12 @@ class ParliamentarianOut(BaseModel):
 
 
 class ParliamentarianDetailOut(ParliamentarianOut):
-    date_of_birth: Optional[str] = None
+    date_of_birth: Optional[date] = None
     canton_id: Optional[int] = None
     party_id: Optional[int] = None
     parl_group_id: Optional[int] = None
-    membership_start: Optional[str] = None
-    membership_end: Optional[str] = None
+    membership_start: Optional[date] = None
+    membership_end: Optional[date] = None
     last_sync: Optional[datetime] = None
 
 

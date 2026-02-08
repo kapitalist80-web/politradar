@@ -6,6 +6,7 @@ import {
   triggerSyncParliamentarians,
   triggerSyncCommittees,
   triggerSyncVotingData,
+  triggerSyncBusinesses,
   triggerSyncAll,
 } from "../api/client";
 
@@ -238,6 +239,12 @@ export default function Settings() {
             description="Abstimmungen und individuelle Stimmabgaben (kann mehrere Minuten dauern)"
             status={syncStatus.votingData}
             onClick={() => handleSync("votingData", triggerSyncVotingData)}
+          />
+          <SyncButton
+            label="Geschaefte"
+            description="Geschaefte aus 2025 und 2026 fuer schnelle Suche zwischenspeichern"
+            status={syncStatus.businesses}
+            onClick={() => handleSync("businesses", triggerSyncBusinesses)}
           />
         </div>
       </div>

@@ -257,6 +257,15 @@ class Voting(Base):
     )
 
 
+class CachedBusiness(Base):
+    __tablename__ = "cached_businesses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_number = Column(String(20), unique=True, nullable=False, index=True)
+    title = Column(String(500))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class VotePrediction(Base):
     __tablename__ = "vote_predictions"
 

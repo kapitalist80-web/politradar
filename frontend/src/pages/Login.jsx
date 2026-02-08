@@ -25,12 +25,18 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 relative">
           <span className="text-swiss-red font-bold text-3xl">+</span>
           <h1 className="text-2xl font-bold mt-2">Parlamentsmonitor</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
             Anmelden
           </p>
+          <span
+            className="absolute -top-2 -right-4 inline-block border-2 border-swiss-red text-swiss-red font-bold text-xs uppercase px-2 py-0.5 rounded-sm opacity-70"
+            style={{ transform: "rotate(12deg)" }}
+          >
+            Beta
+          </span>
         </div>
         <form
           onSubmit={handleSubmit}

@@ -144,6 +144,8 @@ export const getParties = () => request("/parties");
 export const getParlGroups = () => request("/parl-groups");
 
 // Votes
+export const getVoteSessions = () => request("/votes/sessions");
+
 export const getRecentVotes = (params = {}) => {
   const qs = new URLSearchParams(params).toString();
   return request(`/votes/recent${qs ? `?${qs}` : ""}`);
@@ -167,6 +169,9 @@ export const triggerSyncCommittees = () =>
 
 export const triggerSyncVotingData = () =>
   request("/sync/voting-data", { method: "POST" });
+
+export const triggerSyncBusinesses = () =>
+  request("/sync/businesses", { method: "POST" });
 
 export const triggerSyncAll = () =>
   request("/sync/all", { method: "POST" });

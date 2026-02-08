@@ -12,6 +12,7 @@ from .services.scheduler import fetch_monitoring_candidates, sync_committee_sche
 from .services.parliamentarian_sync import sync_parliamentarians
 from .services.committee_sync import sync_committees
 from .services.voting_sync import sync_voting_data
+from .services.parliament_api import sync_cached_businesses
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -115,6 +116,13 @@ async def lifespan(app: FastAPI):
         hour=4,
         id="sync_voting_data",
     )
+    # Daily business cache sync (02:00)
+    scheduler.add_job(
+        sync_cached_businesses,
+        "cron",
+        hour=2,
+        id="sync_cached_businesses",
+    )
     scheduler.start()
     logger.info("Scheduler started")
     yield
@@ -188,13 +196,24 @@ async def trigger_sync_voting_data(
     return {"status": "started", "job": "sync_voting_data"}
 
 
+@app.post("/api/sync/businesses")
+async def trigger_sync_businesses(
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+):
+    """Manually trigger business cache sync (years 25/26)."""
+    background_tasks.add_task(sync_cached_businesses)
+    return {"status": "started", "job": "sync_cached_businesses"}
+
+
 @app.post("/api/sync/all")
 async def trigger_sync_all(
     background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
 ):
-    """Trigger all parliament data syncs (parliamentarians, committees, voting data)."""
+    """Trigger all parliament data syncs (parliamentarians, committees, voting data, businesses)."""
     background_tasks.add_task(sync_parliamentarians)
     background_tasks.add_task(sync_committees)
     background_tasks.add_task(sync_voting_data)
-    return {"status": "started", "jobs": ["sync_parliamentarians", "sync_committees", "sync_voting_data"]}
+    background_tasks.add_task(sync_cached_businesses)
+    return {"status": "started", "jobs": ["sync_parliamentarians", "sync_committees", "sync_voting_data", "sync_cached_businesses"]}

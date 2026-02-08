@@ -1,28 +1,27 @@
 import { useEffect, useState } from "react";
-import { getRecentVotes, getVoteDetail } from "../api/client";
-
-const COUNCIL_OPTIONS = [
-  { value: "", label: "Alle Raete" },
-  { value: "1", label: "Nationalrat" },
-  { value: "2", label: "Staenderat" },
-];
+import { getRecentVotes, getVoteDetail, getVoteSessions } from "../api/client";
 
 export default function Votes() {
   const [votes, setVotes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [councilId, setCouncilId] = useState("");
+  const [sessions, setSessions] = useState([]);
+  const [sessionId, setSessionId] = useState("");
   const [selectedVote, setSelectedVote] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
+    getVoteSessions().then(setSessions).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     setLoading(true);
     const params = {};
-    if (councilId) params.council_id = councilId;
+    if (sessionId) params.session_id = sessionId;
     getRecentVotes(params)
       .then(setVotes)
       .catch(() => setVotes([]))
       .finally(() => setLoading(false));
-  }, [councilId]);
+  }, [sessionId]);
 
   const handleVoteClick = async (voteId) => {
     if (selectedVote?.vote_id === voteId) {
@@ -46,12 +45,13 @@ export default function Votes() {
 
       <div className="flex gap-3 mb-6">
         <select
-          value={councilId}
-          onChange={(e) => setCouncilId(e.target.value)}
+          value={sessionId}
+          onChange={(e) => setSessionId(e.target.value)}
           className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
         >
-          {COUNCIL_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+          <option value="">Alle Sessions</option>
+          {sessions.map((s) => (
+            <option key={s.session_id} value={s.session_id}>{s.session_id}</option>
           ))}
         </select>
       </div>

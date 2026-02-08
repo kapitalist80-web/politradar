@@ -15,18 +15,41 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/votes", tags=["votes"])
 
 
+@router.get("/sessions")
+def get_vote_sessions(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get distinct sessions that have votes, ordered by most recent."""
+    from sqlalchemy import func
+    rows = (
+        db.query(
+            Vote.session_id,
+            func.max(Vote.vote_date).label("latest_date"),
+        )
+        .filter(Vote.session_id.isnot(None), Vote.session_id != "")
+        .group_by(Vote.session_id)
+        .order_by(func.max(Vote.vote_date).desc())
+        .all()
+    )
+    return [{"session_id": r.session_id, "latest_date": r.latest_date} for r in rows]
+
+
 @router.get("/recent", response_model=list[VoteOut])
 def get_recent_votes(
     limit: int = Query(50, le=200),
     offset: int = Query(0),
     council_id: int = Query(None),
+    session_id: str = Query(None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get recent votes with optional council filter."""
+    """Get recent votes with optional council or session filter."""
     query = db.query(Vote)
     if council_id:
         query = query.filter(Vote.council_id == council_id)
+    if session_id:
+        query = query.filter(Vote.session_id == session_id)
     return (
         query.order_by(Vote.vote_date.desc())
         .offset(offset)
