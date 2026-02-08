@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import SessionLocal, get_db
-from ..models import BusinessEvent, TrackedBusiness, User
+from ..models import BusinessEvent, CachedBusiness, TrackedBusiness, User
 from ..schemas import BusinessAdd, BusinessDetailOut, BusinessEventOut, BusinessScheduleOut, TrackedBusinessOut
 from ..services.parliament_api import fetch_business, fetch_business_schedule, fetch_business_status
 
@@ -61,6 +61,7 @@ def list_businesses(
 @router.post("", response_model=TrackedBusinessOut, status_code=status.HTTP_201_CREATED)
 async def add_business(
     data: BusinessAdd,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -84,50 +85,25 @@ async def add_business(
             detail="Geschaeft wird bereits verfolgt",
         )
 
-    info = await fetch_business(data.business_number)
-    if not info:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Geschaeft nicht auf parlament.ch gefunden",
-        )
+    # Use cached title if available for instant response
+    cached = (
+        db.query(CachedBusiness)
+        .filter(CachedBusiness.business_number == data.business_number)
+        .first()
+    )
 
     business = TrackedBusiness(
         user_id=user.id,
         business_number=data.business_number,
-        title=info.get("title"),
-        description=info.get("description"),
-        status=info.get("status"),
-        business_type=info.get("business_type"),
-        author=info.get("author"),
-        author_faction=info.get("author_faction"),
-        submitted_text=info.get("submitted_text"),
-        reasoning=info.get("reasoning"),
-        federal_council_response=info.get("federal_council_response"),
-        federal_council_proposal=info.get("federal_council_proposal"),
-        first_council=info.get("first_council"),
-        submission_date=info.get("submission_date"),
+        title=cached.title if cached else data.business_number,
     )
     db.add(business)
-    db.flush()
-
-    # Fetch and store initial timeline events from parliament API
-    existing_events = (
-        db.query(BusinessEvent)
-        .filter(BusinessEvent.business_number == data.business_number)
-        .count()
-    )
-    if existing_events == 0:
-        status_events = await fetch_business_status(data.business_number)
-        for evt in status_events:
-            db.add(BusinessEvent(
-                business_number=data.business_number,
-                event_type=evt["event_type"],
-                event_date=evt.get("event_date"),
-                description=evt.get("description"),
-            ))
-
     db.commit()
     db.refresh(business)
+
+    # Fetch full details and events from API in background
+    background_tasks.add_task(_backfill_business, business.id, data.business_number)
+
     return business
 
 

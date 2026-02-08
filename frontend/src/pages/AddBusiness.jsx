@@ -89,13 +89,18 @@ export default function AddBusiness() {
     }
   };
 
+  const [adding, setAdding] = useState(false);
+
   const handleAdd = async (businessNumber) => {
+    if (adding) return;
+    setAdding(true);
     setError("");
     try {
       await addBusiness(businessNumber);
       navigate("/");
     } catch (err) {
       setError(err.message);
+      setAdding(false);
     }
   };
 
@@ -148,9 +153,10 @@ export default function AddBusiness() {
           </div>
           <button
             onClick={() => handleAdd(preview.business_number)}
-            className="mt-4 bg-swiss-red text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-swiss-dark"
+            disabled={adding}
+            className="mt-4 bg-swiss-red text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-swiss-dark disabled:opacity-50"
           >
-            Verfolgen
+            {adding ? "Wird hinzugefuegt..." : "Verfolgen"}
           </button>
         </div>
       )}
@@ -205,9 +211,10 @@ export default function AddBusiness() {
                   </div>
                   <button
                     onClick={() => handleAdd(r.business_number)}
-                    className="ml-3 text-sm text-swiss-red hover:underline flex-shrink-0"
+                    disabled={adding}
+                    className="ml-3 text-sm text-swiss-red hover:underline flex-shrink-0 disabled:opacity-50"
                   >
-                    Verfolgen
+                    {adding ? "..." : "Verfolgen"}
                   </button>
                 </div>
               ))}
