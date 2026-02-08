@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { deleteBusiness, getBusiness, getBusinessSchedule, getTreatingBody, getVotePrediction } from "../api/client";
+import { deleteBusiness, getBusiness, getBusinessSchedule, getTreatingBody } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
 import CommitteePanel from "../components/CommitteePanel";
-import FactionBreakdown from "../components/FactionBreakdown";
 
 function HtmlContent({ html, className = "" }) {
   if (!html) return null;
@@ -30,8 +29,6 @@ export default function BusinessDetail() {
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [treatingBody, setTreatingBody] = useState(null);
   const [treatingBodyLoading, setTreatingBodyLoading] = useState(true);
-  const [prediction, setPrediction] = useState(null);
-  const [predictionLoading, setPredictionLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -51,10 +48,6 @@ export default function BusinessDetail() {
       .then(setTreatingBody)
       .catch(() => setTreatingBody(null))
       .finally(() => setTreatingBodyLoading(false));
-    getVotePrediction(id)
-      .then(setPrediction)
-      .catch(() => setPrediction(null))
-      .finally(() => setPredictionLoading(false));
   }, [loadData, id]);
 
   // Re-fetch once after delay to pick up background-synced data
@@ -241,9 +234,6 @@ export default function BusinessDetail() {
 
       {/* Behandelndes Gremium */}
       <CommitteePanel treatingBody={treatingBody} loading={treatingBodyLoading} />
-
-      {/* Abstimmungsprognose */}
-      <FactionBreakdown prediction={prediction} loading={predictionLoading} />
 
       {/* Motionstext */}
       {business.submitted_text && (
