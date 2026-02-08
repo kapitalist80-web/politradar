@@ -223,11 +223,14 @@ async def sync_cached_businesses():
     db = SessionLocal()
     try:
         existing = {r.business_number for r in db.query(CachedBusiness.business_number).all()}
+        seen = set(existing)
         new_count = 0
         for b in businesses:
-            if b["business_number"] not in existing:
+            nr = b["business_number"]
+            if nr not in seen:
+                seen.add(nr)
                 db.add(CachedBusiness(
-                    business_number=b["business_number"],
+                    business_number=nr,
                     title=b.get("title", ""),
                 ))
                 new_count += 1
