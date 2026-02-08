@@ -27,9 +27,9 @@ export default function AddBusiness() {
       .finally(() => setCacheLoading(false));
   }, []);
 
-  // Build a set of cached business numbers for fast lookup
-  const cachedNumbers = useMemo(
-    () => new Set(cachedBusinesses.map((b) => b.business_number)),
+  // Build a map of cached business numbers for fast lookup
+  const cachedMap = useMemo(
+    () => new Map(cachedBusinesses.map((b) => [b.business_number, b])),
     [cachedBusinesses],
   );
 
@@ -52,11 +52,16 @@ export default function AddBusiness() {
       return;
     }
     setError("");
-    setLoading(true);
-    // Show API indicator if not in cache
-    if (!cachedNumbers.has(number)) {
-      setApiLoading(true);
+
+    // Use cached data if available (instant)
+    const cached = cachedMap.get(number);
+    if (cached) {
+      setPreview({ business_number: cached.business_number, title: cached.title });
+      return;
     }
+
+    setLoading(true);
+    setApiLoading(true);
     try {
       const data = await previewBusiness(number);
       setPreview(data);
