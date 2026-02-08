@@ -134,27 +134,17 @@ async def _backfill_business(business_id: int, business_number: str) -> None:
         if not business:
             return
 
-        needs_backfill = not business.author or not business.submitted_text or \
-            not business.reasoning or not business.federal_council_proposal or \
-            not business.first_council or not business.author_faction
-        if needs_backfill:
-            info = await fetch_business(business.business_number)
-            if info:
-                if info.get("author") and not business.author:
-                    business.author = info["author"]
-                if info.get("author_faction") and not business.author_faction:
-                    business.author_faction = info["author_faction"]
-                if info.get("submitted_text") and not business.submitted_text:
-                    business.submitted_text = info["submitted_text"]
-                if info.get("reasoning") and not business.reasoning:
-                    business.reasoning = info["reasoning"]
-                if info.get("federal_council_response") and not business.federal_council_response:
-                    business.federal_council_response = info["federal_council_response"]
-                if info.get("federal_council_proposal") and not business.federal_council_proposal:
-                    business.federal_council_proposal = info["federal_council_proposal"]
-                if info.get("first_council") and not business.first_council:
-                    business.first_council = info["first_council"]
-                db.commit()
+        info = await fetch_business(business.business_number)
+        if info:
+            for field in ("title", "author", "author_faction", "submitted_text",
+                          "reasoning", "federal_council_response",
+                          "federal_council_proposal", "first_council",
+                          "description", "status", "business_type"):
+                val = info.get(field)
+                if val and not getattr(business, field, None):
+                    setattr(business, field, val)
+            business.last_api_sync = datetime.utcnow()
+            db.commit()
     except Exception:
         db.rollback()
         logger.exception("Backfill failed for business %s", business_number)
@@ -184,8 +174,14 @@ def get_business(
         .all()
     )
 
-    # Schedule background API sync for missing data (non-blocking)
-    background_tasks.add_task(_backfill_business, business.id, business.business_number)
+    # Only backfill if data is missing and not recently synced (< 24h)
+    needs_backfill = not business.title or not business.author or not business.status
+    recently_synced = (
+        business.last_api_sync
+        and (datetime.utcnow() - business.last_api_sync).total_seconds() < 86400
+    )
+    if needs_backfill and not recently_synced:
+        background_tasks.add_task(_backfill_business, business.id, business.business_number)
 
     return {"business": business, "events": events}
 

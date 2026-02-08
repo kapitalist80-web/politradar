@@ -57,12 +57,12 @@ export default function BusinessDetail() {
       .finally(() => setPredictionLoading(false));
   }, [loadData, id]);
 
-  // Re-fetch after a short delay to pick up background-synced data
+  // Re-fetch once after delay to pick up background-synced data
   useEffect(() => {
     if (!data) return;
-    const timer = setTimeout(() => {
-      loadData();
-    }, 3000);
+    const needsBackfill = !data.business?.author || !data.business?.status;
+    if (!needsBackfill) return;
+    const timer = setTimeout(() => loadData(), 5000);
     return () => clearTimeout(timer);
   }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
