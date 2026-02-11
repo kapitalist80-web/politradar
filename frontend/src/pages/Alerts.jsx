@@ -4,7 +4,7 @@ import AlertItem from "../components/AlertItem";
 
 const ALERT_TYPES = [
   { value: "", label: "Alle" },
-  { value: "status_change", label: "Statusaenderung" },
+  { value: "status_change", label: "Statusänderung" },
   { value: "committee_scheduled", label: "Kommission" },
   { value: "debate_scheduled", label: "Debatte" },
   { value: "new_document", label: "Dokument" },

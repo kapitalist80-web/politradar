@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 import { getParliamentarians, getParlGroups } from "../api/client";
 
 const COUNCIL_OPTIONS = [
-  { value: "", label: "Alle Raete" },
+  { value: "", label: "Alle Räte" },
   { value: "1", label: "Nationalrat" },
-  { value: "2", label: "Staenderat" },
+  { value: "2", label: "Ständerat" },
 ];
 
 export default function Parliamentarians() {
@@ -97,7 +97,7 @@ export default function Parliamentarians() {
         </div>
       ) : members.length === 0 ? (
         <p className="text-gray-500">
-          Keine Parlamentarier gefunden. Daten muessen erst synchronisiert werden.
+          Keine Parlamentarier gefunden. Daten müssen erst synchronisiert werden.
         </p>
       ) : (
         <>

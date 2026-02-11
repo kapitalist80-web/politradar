@@ -43,7 +43,7 @@ async def get_treating_body(
     if not business:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Geschaeft nicht gefunden",
+            detail="Geschäft nicht gefunden",
         )
 
     # Fetch preconsultations from parliament API
@@ -138,7 +138,7 @@ async def get_vote_prediction(
     if not business:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Geschaeft nicht gefunden",
+            detail="Geschäft nicht gefunden",
         )
 
     # First determine the treating body

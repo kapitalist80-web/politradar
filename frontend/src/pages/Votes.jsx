@@ -1,19 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getRecentVotes, getVoteDetail, getVoteSessions } from "../api/client";
 
 export default function Votes() {
   const [votes, setVotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
-  const [sessionId, setSessionId] = useState("");
+  const [sessionId, setSessionId] = useState(null);
   const [selectedVote, setSelectedVote] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  // Fetch sessions, then auto-select the latest one
   useEffect(() => {
-    getVoteSessions().then(setSessions).catch(() => {});
+    getVoteSessions()
+      .then((data) => {
+        setSessions(data || []);
+        if (data && data.length > 0) {
+          setSessionId(data[0].session_id);
+        } else {
+          setSessionId("");
+        }
+      })
+      .catch(() => {
+        setSessions([]);
+        setSessionId("");
+      });
   }, []);
 
+  // Fetch votes once sessionId is set (not null)
   useEffect(() => {
+    if (sessionId === null) return;
     setLoading(true);
     const params = {};
     if (sessionId) params.session_id = sessionId;
@@ -22,6 +37,22 @@ export default function Votes() {
       .catch(() => setVotes([]))
       .finally(() => setLoading(false));
   }, [sessionId]);
+
+  // Group votes by business_number
+  const grouped = useMemo(() => {
+    const groups = [];
+    const map = new Map();
+    for (const v of votes) {
+      const key = v.business_number || "";
+      if (!map.has(key)) {
+        const group = { businessNumber: key, businessTitle: v.business_title || "", votes: [] };
+        map.set(key, group);
+        groups.push(group);
+      }
+      map.get(key).votes.push(v);
+    }
+    return groups;
+  }, [votes]);
 
   const handleVoteClick = async (voteId) => {
     if (selectedVote?.vote_id === voteId) {
@@ -45,13 +76,15 @@ export default function Votes() {
 
       <div className="flex gap-3 mb-6">
         <select
-          value={sessionId}
+          value={sessionId || ""}
           onChange={(e) => setSessionId(e.target.value)}
           className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
         >
           <option value="">Alle Sessions</option>
           {sessions.map((s) => (
-            <option key={s.session_id} value={s.session_id}>{s.session_id}</option>
+            <option key={s.session_id} value={s.session_id}>
+              {s.session_name || s.session_id}
+            </option>
           ))}
         </select>
       </div>
@@ -62,87 +95,98 @@ export default function Votes() {
         </div>
       ) : votes.length === 0 ? (
         <p className="text-gray-500">
-          Keine Abstimmungsdaten vorhanden. Daten muessen erst synchronisiert werden.
+          Keine Abstimmungsdaten vorhanden. Daten müssen erst synchronisiert werden.
         </p>
       ) : (
-        <div className="space-y-3">
-          {votes.map((v) => (
-            <div key={v.vote_id}>
-              <button
-                onClick={() => handleVoteClick(v.vote_id)}
-                className="w-full text-left bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      {v.business_number && (
-                        <span className="font-mono text-xs text-gray-500">
-                          {v.business_number}
-                        </span>
-                      )}
-                      {v.vote_date && (
-                        <span className="text-xs text-gray-400">
-                          {new Date(v.vote_date).toLocaleDateString("de-CH")}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm font-medium truncate">
-                      {v.subject || v.business_title || "Abstimmung"}
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0 flex items-center gap-2">
-                    {v.result && (
-                      <span
-                        className={`text-xs font-medium px-2 py-0.5 rounded ${
-                          v.result.toLowerCase().includes("angenommen")
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                        }`}
-                      >
-                        {v.result}
-                      </span>
-                    )}
-                    <VoteResultBar yes={v.total_yes} no={v.total_no} abstain={v.total_abstain} />
-                  </div>
-                </div>
-              </button>
-
-              {/* Detail view */}
-              {selectedVote?.vote_id === v.vote_id && (
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-700 p-4">
-                  {detailLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <div className="animate-spin h-4 w-4 border-2 border-swiss-red border-t-transparent rounded-full" />
-                      Details werden geladen...
-                    </div>
-                  ) : (
-                    <div>
-                      {selectedVote.meaning_yes && (
-                        <div className="mb-2 text-sm">
-                          <span className="text-green-600 font-medium">Ja:</span>{" "}
-                          <span className="text-gray-600 dark:text-gray-400">{selectedVote.meaning_yes}</span>
-                        </div>
-                      )}
-                      {selectedVote.meaning_no && (
-                        <div className="mb-3 text-sm">
-                          <span className="text-red-600 font-medium">Nein:</span>{" "}
-                          <span className="text-gray-600 dark:text-gray-400">{selectedVote.meaning_no}</span>
-                        </div>
-                      )}
-
-                      {/* Voting breakdown by faction */}
-                      {selectedVote.votings && selectedVote.votings.length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-medium mb-2">
-                            Stimmverhalten ({selectedVote.votings.length} Stimmen)
-                          </h3>
-                          <FactionVotingBreakdown votings={selectedVote.votings} />
-                        </div>
-                      )}
-                    </div>
+        <div className="space-y-6">
+          {grouped.map((group) => (
+            <div key={group.businessNumber || "__none__"}>
+              {group.businessNumber && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-mono text-xs text-gray-500">{group.businessNumber}</span>
+                  {group.businessTitle && (
+                    <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                      {group.businessTitle}
+                    </span>
                   )}
                 </div>
               )}
+              <div className="space-y-2">
+                {group.votes.map((v) => (
+                  <div key={v.vote_id}>
+                    <button
+                      onClick={() => handleVoteClick(v.vote_id)}
+                      className="w-full text-left bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {v.vote_date && (
+                              <span className="text-xs text-gray-400">
+                                {new Date(v.vote_date).toLocaleDateString("de-CH")}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-medium truncate">
+                            {v.subject || v.business_title || "Abstimmung"}
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0 flex items-center gap-2">
+                          {v.result && (
+                            <span
+                              className={`text-xs font-medium px-2 py-0.5 rounded ${
+                                v.result.toLowerCase().includes("angenommen")
+                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                  : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                              }`}
+                            >
+                              {v.result}
+                            </span>
+                          )}
+                          <VoteResultBar yes={v.total_yes} no={v.total_no} abstain={v.total_abstain} />
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Detail view */}
+                    {selectedVote?.vote_id === v.vote_id && (
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-b-lg border-x border-b border-gray-200 dark:border-gray-700 p-4">
+                        {detailLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <div className="animate-spin h-4 w-4 border-2 border-swiss-red border-t-transparent rounded-full" />
+                            Details werden geladen...
+                          </div>
+                        ) : (
+                          <div>
+                            {selectedVote.meaning_yes && (
+                              <div className="mb-2 text-sm">
+                                <span className="text-green-600 font-medium">Ja:</span>{" "}
+                                <span className="text-gray-600 dark:text-gray-400">{selectedVote.meaning_yes}</span>
+                              </div>
+                            )}
+                            {selectedVote.meaning_no && (
+                              <div className="mb-3 text-sm">
+                                <span className="text-red-600 font-medium">Nein:</span>{" "}
+                                <span className="text-gray-600 dark:text-gray-400">{selectedVote.meaning_no}</span>
+                              </div>
+                            )}
+
+                            {/* Voting breakdown by faction */}
+                            {selectedVote.votings && selectedVote.votings.length > 0 && (
+                              <div>
+                                <h3 className="text-sm font-medium mb-2">
+                                  Stimmverhalten ({selectedVote.votings.length} Stimmen)
+                                </h3>
+                                <FactionVotingBreakdown votings={selectedVote.votings} />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>

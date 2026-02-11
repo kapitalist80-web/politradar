@@ -1,7 +1,7 @@
 import { markAlertRead } from "../api/client";
 
 const TYPE_LABELS = {
-  status_change: "Statusaenderung",
+  status_change: "Statusänderung",
   committee_scheduled: "Kommission",
   debate_scheduled: "Debatte",
   new_document: "Dokument",

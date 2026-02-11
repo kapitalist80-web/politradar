@@ -36,6 +36,10 @@ class BusinessAdd(BaseModel):
     business_number: str
 
 
+class BusinessPriorityUpdate(BaseModel):
+    priority: Optional[int] = None  # 1, 2, 3, or null
+
+
 class TrackedBusinessOut(BaseModel):
     id: int
     business_number: str
@@ -50,6 +54,7 @@ class TrackedBusinessOut(BaseModel):
     federal_council_response: Optional[str] = None
     federal_council_proposal: Optional[str] = None
     first_council: Optional[str] = None
+    priority: Optional[int] = None
     submission_date: Optional[datetime] = None
     next_event_date: Optional[datetime] = None
     last_api_sync: Optional[datetime] = None
@@ -73,6 +78,20 @@ class BusinessEventOut(BaseModel):
 class BusinessDetailOut(BaseModel):
     business: TrackedBusinessOut
     events: list[BusinessEventOut]
+
+
+# --- Business Notes ---
+class BusinessNoteCreate(BaseModel):
+    content: str
+
+
+class BusinessNoteOut(BaseModel):
+    id: int
+    content: str
+    user_name: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 # --- Alerts ---

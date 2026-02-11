@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { deleteBusiness, getBusiness, getBusinessSchedule, getTreatingBody } from "../api/client";
+import { addBusinessNote, deleteBusiness, getBusiness, getBusinessNotes, getBusinessSchedule, getTreatingBody, updateBusinessPriority } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
 import CommitteePanel from "../components/CommitteePanel";
 
@@ -30,6 +30,10 @@ export default function BusinessDetail() {
   const [treatingBody, setTreatingBody] = useState(null);
   const [treatingBodyLoading, setTreatingBodyLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(true);
+  const [newNote, setNewNote] = useState("");
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const loadData = useCallback(() => {
@@ -48,6 +52,10 @@ export default function BusinessDetail() {
       .then(setTreatingBody)
       .catch(() => setTreatingBody(null))
       .finally(() => setTreatingBodyLoading(false));
+    getBusinessNotes(id)
+      .then(setNotes)
+      .catch(() => setNotes([]))
+      .finally(() => setNotesLoading(false));
   }, [loadData, id]);
 
   // Re-fetch once after delay to pick up background-synced data
@@ -63,6 +71,26 @@ export default function BusinessDetail() {
     if (!confirm("Tracking beenden?")) return;
     await deleteBusiness(id);
     navigate("/");
+  };
+
+  const handlePriorityChange = async (value) => {
+    const priority = value ? parseInt(value) : null;
+    await updateBusinessPriority(id, priority);
+    loadData();
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+    setNoteSubmitting(true);
+    try {
+      const note = await addBusinessNote(id, newNote.trim());
+      setNotes((prev) => [note, ...prev]);
+      setNewNote("");
+    } catch {
+      /* ignore */
+    } finally {
+      setNoteSubmitting(false);
+    }
   };
 
   if (loading || !data) {
@@ -91,6 +119,16 @@ export default function BusinessDetail() {
             {business.business_number}
           </span>
           <StatusBadge status={business.status} />
+          <select
+            value={business.priority || ""}
+            onChange={(e) => handlePriorityChange(e.target.value)}
+            className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700"
+          >
+            <option value="">Priorität</option>
+            <option value="1">1 (Hoch)</option>
+            <option value="2">2 (Mittel)</option>
+            <option value="3">3 (Niedrig)</option>
+          </select>
         </div>
         <h1 className="text-2xl font-bold mb-2">
           {business.title || "Ohne Titel"}
@@ -145,7 +183,7 @@ export default function BusinessDetail() {
             rel="noopener noreferrer"
             className="text-sm text-swiss-red hover:underline"
           >
-            Geschaeft auf parlament.ch ansehen &rarr;
+            Geschäft auf parlament.ch ansehen &rarr;
           </a>
         </div>
       </div>
@@ -245,6 +283,53 @@ export default function BusinessDetail() {
           />
         </div>
       )}
+
+      {/* Notizen */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 className="font-semibold mb-4">Notizen</h2>
+        <div className="mb-4">
+          <textarea
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            placeholder="Neue Notiz hinzufügen..."
+            rows={3}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-swiss-red"
+          />
+          <button
+            onClick={handleAddNote}
+            disabled={noteSubmitting || !newNote.trim()}
+            className="mt-2 bg-swiss-red text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-swiss-dark transition-colors disabled:opacity-50"
+          >
+            {noteSubmitting ? "Speichern..." : "Speichern"}
+          </button>
+        </div>
+        {notesLoading ? (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="animate-spin h-4 w-4 border-2 border-swiss-red border-t-transparent rounded-full" />
+            Notizen werden geladen...
+          </div>
+        ) : notes.length > 0 ? (
+          <div className="space-y-3">
+            {notes.map((note) => (
+              <div
+                key={note.id}
+                className="border-l-4 border-swiss-red pl-4 py-2"
+              >
+                <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                  <span className="font-medium">{note.user_name || "Unbekannt"}</span>
+                  <span>&middot;</span>
+                  <time>{new Date(note.created_at).toLocaleString("de-CH")}</time>
+                </div>
+                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                  {note.content}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">Noch keine Notizen</p>
+        )}
+      </div>
 
       {/* Begruendung */}
       {business.reasoning && (

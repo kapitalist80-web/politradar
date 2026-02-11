@@ -11,7 +11,7 @@ const DECISION_LABELS = {
   No: "Nein",
   Abstention: "Enthaltung",
   Absent: "Abwesend",
-  President: "Praesidium",
+  President: "Präsidium",
 };
 
 export default function VotingHistoryTable({ votes, loading }) {
@@ -34,7 +34,7 @@ export default function VotingHistoryTable({ votes, loading }) {
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700">
             <th className="text-left py-2 pr-3">Datum</th>
-            <th className="text-left py-2 pr-3">Geschaeft</th>
+            <th className="text-left py-2 pr-3">Geschäft</th>
             <th className="text-left py-2 pr-3">Gegenstand</th>
             <th className="text-left py-2 pr-3">Stimme</th>
             <th className="text-left py-2">Ergebnis</th>

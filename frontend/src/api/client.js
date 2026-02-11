@@ -18,7 +18,7 @@ async function request(path, options = {}) {
 
   if (res.status === 401) {
     localStorage.removeItem("token");
-    throw new Error("Ungueltige Anmeldedaten");
+    throw new Error("Ungültige Anmeldedaten");
   }
 
   if (res.status === 204) return null;
@@ -28,7 +28,7 @@ async function request(path, options = {}) {
     data = await res.json();
   } catch {
     if (!res.ok) throw new Error(`Serverfehler (${res.status})`);
-    throw new Error("Ungueltige Serverantwort");
+    throw new Error("Ungültige Serverantwort");
   }
   if (!res.ok) throw new Error(data.detail || "Fehler");
   return data;
@@ -62,6 +62,20 @@ export const getBusiness = (id) => request(`/businesses/${id}`);
 
 export const deleteBusiness = (id) =>
   request(`/businesses/${id}`, { method: "DELETE" });
+
+export const updateBusinessPriority = (id, priority) =>
+  request(`/businesses/${id}/priority`, {
+    method: "PATCH",
+    body: JSON.stringify({ priority }),
+  });
+
+export const getBusinessNotes = (id) => request(`/businesses/${id}/notes`);
+
+export const addBusinessNote = (id, content) =>
+  request(`/businesses/${id}/notes`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
 
 export const getBusinessSchedule = (id) => request(`/businesses/${id}/schedule`);
 

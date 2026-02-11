@@ -53,10 +53,25 @@ class TrackedBusiness(Base):
     federal_council_proposal = Column(String(200))
     first_council = Column(String(100))
     submission_date = Column(DateTime)
+    priority = Column(Integer, nullable=True)
     last_api_sync = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="tracked_businesses")
+    notes = relationship("BusinessNote", back_populates="business", cascade="all, delete-orphan")
+
+
+class BusinessNote(Base):
+    __tablename__ = "business_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("tracked_businesses.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    business = relationship("TrackedBusiness", back_populates="notes")
+    user = relationship("User")
 
 
 class BusinessEvent(Base):
@@ -230,6 +245,7 @@ class Vote(Base):
     vote_date = Column(DateTime)
     council_id = Column(Integer)
     session_id = Column(String(50))
+    session_name = Column(String(200))
     total_yes = Column(Integer)
     total_no = Column(Integer)
     total_abstain = Column(Integer)

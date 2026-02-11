@@ -1,10 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { deleteBusiness, getAlerts, getBusinesses } from "../api/client";
+import { deleteBusiness, getAlerts, getBusinesses, updateBusinessPriority } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("de-CH") : "–";
+
+const PRIORITY_LABELS = { 1: "1 (Hoch)", 2: "2 (Mittel)", 3: "3 (Niedrig)" };
+
+function PriorityBadge({ value }) {
+  if (!value) return <span className="text-gray-400">–</span>;
+  const colors = {
+    1: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+    2: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+    3: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
+  };
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded ${colors[value] || ""}`}>
+      {PRIORITY_LABELS[value] || value}
+    </span>
+  );
+}
 
 export default function Dashboard() {
   const [businesses, setBusinesses] = useState([]);
@@ -38,6 +56,14 @@ export default function Dashboard() {
     load();
   };
 
+  const handlePriorityChange = async (id, value) => {
+    const priority = value ? parseInt(value) : null;
+    await updateBusinessPriority(id, priority);
+    setBusinesses((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, priority } : b))
+    );
+  };
+
   const handleSort = (key) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -65,6 +91,39 @@ export default function Dashboard() {
     return list;
   }, [businesses, sortKey, sortDir]);
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.setFontSize(16);
+    doc.text("Parlamentsmonitor \u2013 Geschäftsübersicht", 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Exportiert am ${new Date().toLocaleDateString("de-CH")}`, 14, 22);
+
+    const headers = [["Nummer", "Titel", "Status", "Typ", "Priorität", "Einreichung", "Nächster Termin"]];
+    const rows = sorted.map((biz) => [
+      biz.business_number,
+      biz.title || "Ohne Titel",
+      biz.status || "–",
+      biz.business_type || "–",
+      biz.priority ? PRIORITY_LABELS[biz.priority] : "–",
+      fmtDate(biz.submission_date),
+      fmtDate(biz.next_event_date),
+    ]);
+
+    autoTable(doc, {
+      head: headers,
+      body: rows,
+      startY: 28,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [213, 43, 30] },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 80 },
+      },
+    });
+
+    doc.save(`parlamentsmonitor-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
   const SortIcon = ({ col }) => {
     if (sortKey !== col) return <span className="text-gray-300 ml-1">&#8597;</span>;
     return <span className="ml-1">{sortDir === "asc" ? "\u25B2" : "\u25BC"}</span>;
@@ -82,7 +141,7 @@ export default function Dashboard() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {unreadCount > 0 && (
             <Link
               to="/alerts"
@@ -91,20 +150,28 @@ export default function Dashboard() {
               {unreadCount} ungelesene Alerts
             </Link>
           )}
+          {businesses.length > 0 && (
+            <button
+              onClick={handleExportPDF}
+              className="bg-gray-800 dark:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
+            >
+              PDF Export
+            </button>
+          )}
           <Link
             to="/add"
             className="bg-swiss-red text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-swiss-dark transition-colors"
           >
-            + Geschaeft hinzufuegen
+            + Geschäft hinzufügen
           </Link>
         </div>
       </div>
 
       {businesses.length === 0 ? (
         <div className="text-center py-20 text-gray-500">
-          <p className="text-lg mb-2">Noch keine Geschaefte verfolgt</p>
+          <p className="text-lg mb-2">Noch keine Geschäfte verfolgt</p>
           <Link to="/add" className="text-swiss-red hover:underline">
-            Jetzt ein Geschaeft hinzufuegen
+            Jetzt ein Geschäft hinzufügen
           </Link>
         </div>
       ) : (
@@ -131,6 +198,12 @@ export default function Dashboard() {
                     <th className="px-4 py-3">Typ</th>
                     <th
                       className="px-4 py-3 cursor-pointer select-none hover:text-swiss-red"
+                      onClick={() => handleSort("priority")}
+                    >
+                      Priorität <SortIcon col="priority" />
+                    </th>
+                    <th
+                      className="px-4 py-3 cursor-pointer select-none hover:text-swiss-red"
                       onClick={() => handleSort("submission_date")}
                     >
                       Einreichung <SortIcon col="submission_date" />
@@ -139,7 +212,7 @@ export default function Dashboard() {
                       className="px-4 py-3 cursor-pointer select-none hover:text-swiss-red"
                       onClick={() => handleSort("next_event_date")}
                     >
-                      Naechster Termin <SortIcon col="next_event_date" />
+                      Nächster Termin <SortIcon col="next_event_date" />
                     </th>
                     <th className="px-4 py-3"></th>
                   </tr>
@@ -156,7 +229,7 @@ export default function Dashboard() {
                       <td className="px-4 py-3">
                         <Link
                           to={`/business/${biz.id}`}
-                          className="font-medium text-gray-900 dark:text-gray-100 hover:text-swiss-red line-clamp-1"
+                          className="font-medium text-gray-900 dark:text-gray-100 hover:text-swiss-red line-clamp-2"
                         >
                           {biz.title || "Ohne Titel"}
                         </Link>
@@ -166,6 +239,19 @@ export default function Dashboard() {
                       </td>
                       <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                         {biz.business_type || "–"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={biz.priority || ""}
+                          onChange={(e) => handlePriorityChange(biz.id, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 bg-white dark:bg-gray-700"
+                        >
+                          <option value="">–</option>
+                          <option value="1">1 (Hoch)</option>
+                          <option value="2">2 (Mittel)</option>
+                          <option value="3">3 (Niedrig)</option>
+                        </select>
                       </td>
                       <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                         {fmtDate(biz.submission_date)}
@@ -205,7 +291,10 @@ export default function Dashboard() {
                   <span className="text-sm font-mono text-gray-500">
                     {biz.business_number}
                   </span>
-                  <StatusBadge status={biz.status} />
+                  <div className="flex items-center gap-2">
+                    <PriorityBadge value={biz.priority} />
+                    <StatusBadge status={biz.status} />
+                  </div>
                 </div>
                 <Link
                   to={`/business/${biz.id}`}
@@ -227,7 +316,7 @@ export default function Dashboard() {
                 </div>
                 {biz.next_event_date && (
                   <p className="text-xs text-swiss-red mt-2">
-                    Naechster Termin: {fmtDate(biz.next_event_date)}
+                    Nächster Termin: {fmtDate(biz.next_event_date)}
                   </p>
                 )}
               </div>

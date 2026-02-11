@@ -13,7 +13,7 @@ def _build_alert_summary_html(alerts: list[dict]) -> str:
     rows = ""
     for a in alerts:
         alert_type_labels = {
-            "status_change": "Statusaenderung",
+            "status_change": "Statusänderung",
             "committee_scheduled": "Kommission",
             "debate_scheduled": "Debatte",
             "new_document": "Dokument",
@@ -61,7 +61,7 @@ def _build_alert_summary_html(alerts: list[dict]) -> str:
             </table>
             <p style="color: #888; font-size: 13px; margin-top: 24px;">
                 Diese E-Mail wurde automatisch vom Parlamentsmonitor gesendet.
-                Sie koennen die E-Mail-Benachrichtigungen in den Einstellungen deaktivieren.
+                Sie können die E-Mail-Benachrichtigungen in den Einstellungen deaktivieren.
             </p>
         </div>
     </body>

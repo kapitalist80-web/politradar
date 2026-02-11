@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import SessionLocal, get_db
-from ..models import BusinessEvent, CachedBusiness, TrackedBusiness, User
-from ..schemas import BusinessAdd, BusinessDetailOut, BusinessEventOut, BusinessScheduleOut, TrackedBusinessOut
+from ..models import BusinessEvent, BusinessNote, CachedBusiness, TrackedBusiness, User
+from ..schemas import BusinessAdd, BusinessDetailOut, BusinessEventOut, BusinessNoteCreate, BusinessNoteOut, BusinessPriorityUpdate, BusinessScheduleOut, TrackedBusinessOut
 from ..services.parliament_api import fetch_business, fetch_business_schedule, fetch_business_status
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ async def add_business(
     if not BUSINESS_NUMBER_RE.match(data.business_number):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ungueltiges Geschaeftsnummer-Format (z.B. 24.3927)",
+            detail="Ungültiges Geschäftsnummer-Format (z.B. 24.3927)",
         )
 
     exists = (
@@ -82,7 +82,7 @@ async def add_business(
     if exists:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Geschaeft wird bereits verfolgt",
+            detail="Geschäft wird bereits verfolgt",
         )
 
     # Use cached title if available for instant response
@@ -219,3 +219,89 @@ def delete_business(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nicht gefunden")
     db.delete(business)
     db.commit()
+
+
+@router.patch("/{business_id}/priority")
+def update_priority(
+    business_id: int,
+    data: BusinessPriorityUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    business = (
+        db.query(TrackedBusiness)
+        .filter(TrackedBusiness.id == business_id, TrackedBusiness.user_id == user.id)
+        .first()
+    )
+    if not business:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nicht gefunden")
+    if data.priority is not None and data.priority not in (1, 2, 3):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Priorität muss 1, 2 oder 3 sein",
+        )
+    business.priority = data.priority
+    db.commit()
+    db.refresh(business)
+    return {"id": business.id, "priority": business.priority}
+
+
+@router.get("/{business_id}/notes", response_model=list[BusinessNoteOut])
+def get_business_notes(
+    business_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    business = (
+        db.query(TrackedBusiness)
+        .filter(TrackedBusiness.id == business_id, TrackedBusiness.user_id == user.id)
+        .first()
+    )
+    if not business:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nicht gefunden")
+    notes = (
+        db.query(BusinessNote)
+        .filter(BusinessNote.business_id == business_id)
+        .order_by(BusinessNote.created_at.desc())
+        .all()
+    )
+    result = []
+    for note in notes:
+        note_user = db.query(User).filter(User.id == note.user_id).first()
+        result.append(BusinessNoteOut(
+            id=note.id,
+            content=note.content,
+            user_name=note_user.name if note_user else None,
+            created_at=note.created_at,
+        ))
+    return result
+
+
+@router.post("/{business_id}/notes", response_model=BusinessNoteOut, status_code=status.HTTP_201_CREATED)
+def add_business_note(
+    business_id: int,
+    data: BusinessNoteCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    business = (
+        db.query(TrackedBusiness)
+        .filter(TrackedBusiness.id == business_id, TrackedBusiness.user_id == user.id)
+        .first()
+    )
+    if not business:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nicht gefunden")
+    note = BusinessNote(
+        business_id=business_id,
+        user_id=user.id,
+        content=data.content,
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return BusinessNoteOut(
+        id=note.id,
+        content=note.content,
+        user_name=user.name,
+        created_at=note.created_at,
+    )

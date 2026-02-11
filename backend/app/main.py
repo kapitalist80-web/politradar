@@ -20,6 +20,46 @@ logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
+def _backfill_session_names(engine):
+    """One-time backfill: fetch session names from parliament API and update votes."""
+    from sqlalchemy import text
+    from sqlalchemy.orm import Session as DBSession
+    try:
+        with engine.connect() as conn:
+            # Check if any votes are missing session_name
+            result = conn.execute(text(
+                "SELECT COUNT(*) FROM votes WHERE session_name IS NULL OR session_name = ''"
+            ))
+            missing = result.scalar()
+            if not missing:
+                return
+
+            logger.info("Backfilling session names for %d votes...", missing)
+
+        import swissparlpy as spp
+        sessions_data = spp.get_data("Session", Language="DE")
+        session_map = {}
+        for s in sessions_data:
+            sid = s.get("ID") if hasattr(s, 'get') else getattr(s, 'ID', None)
+            name = (s.get("SessionName") if hasattr(s, 'get') else getattr(s, 'SessionName', None)) or \
+                   (s.get("Abbreviation") if hasattr(s, 'get') else getattr(s, 'Abbreviation', None)) or ""
+            if sid and name:
+                session_map[str(sid)] = name
+
+        with engine.connect() as conn:
+            updated = 0
+            for sid, sname in session_map.items():
+                result = conn.execute(
+                    text("UPDATE votes SET session_name = :name WHERE session_id = :sid AND (session_name IS NULL OR session_name = '')"),
+                    {"name": sname, "sid": sid},
+                )
+                updated += result.rowcount
+            conn.commit()
+            logger.info("Backfilled session names: %d votes updated", updated)
+    except Exception:
+        logger.exception("Session name backfill failed (non-critical)")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create tables if they don't exist yet
@@ -59,6 +99,32 @@ async def lifespan(app: FastAPI):
             conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN author_faction VARCHAR(255)"))
             conn.commit()
             logger.info("Added author_faction column to tracked_businesses")
+        if "priority" not in columns:
+            conn.execute(text("ALTER TABLE tracked_businesses ADD COLUMN priority INTEGER"))
+            conn.commit()
+            logger.info("Added priority column to tracked_businesses")
+
+        # Votes table migrations
+        vote_columns = [c["name"] for c in inspector.get_columns("votes")]
+        if "session_name" not in vote_columns:
+            conn.execute(text("ALTER TABLE votes ADD COLUMN session_name VARCHAR(200)"))
+            conn.commit()
+            logger.info("Added session_name column to votes")
+
+        # Business notes table
+        if not inspector.has_table("business_notes"):
+            conn.execute(text("""
+                CREATE TABLE business_notes (
+                    id SERIAL PRIMARY KEY,
+                    business_id INTEGER NOT NULL REFERENCES tracked_businesses(id) ON DELETE CASCADE,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    content TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_business_notes_business ON business_notes(business_id)"))
+            conn.commit()
+            logger.info("Created business_notes table")
 
         # User table migrations
         user_columns = [c["name"] for c in inspector.get_columns("users")]
@@ -72,6 +138,9 @@ async def lifespan(app: FastAPI):
             logger.info("Added email_alert_types column to users")
 
     logger.info("Database tables ensured")
+
+    # Backfill session names for votes that are missing them
+    _backfill_session_names(engine)
 
     # Start scheduler
     scheduler.add_job(

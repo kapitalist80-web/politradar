@@ -25,6 +25,7 @@ def get_vote_sessions(
     rows = (
         db.query(
             Vote.session_id,
+            func.max(Vote.session_name).label("session_name"),
             func.max(Vote.vote_date).label("latest_date"),
         )
         .filter(Vote.session_id.isnot(None), Vote.session_id != "")
@@ -32,7 +33,7 @@ def get_vote_sessions(
         .order_by(func.max(Vote.vote_date).desc())
         .all()
     )
-    return [{"session_id": r.session_id, "latest_date": r.latest_date} for r in rows]
+    return [{"session_id": r.session_id, "session_name": r.session_name, "latest_date": r.latest_date} for r in rows]
 
 
 @router.get("/recent", response_model=list[VoteOut])

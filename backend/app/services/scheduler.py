@@ -117,7 +117,7 @@ async def sync_tracked_businesses():
                         user_id=t.user_id,
                         business_number=biz.business_number,
                         alert_type="status_change",
-                        message=f"Geschaeft {biz.business_number}: Status geaendert von '{old_status}' zu '{new_status}'",
+                        message=f"Geschäft {biz.business_number}: Status geändert von '{old_status}' zu '{new_status}'",
                     )
                     db.add(alert)
                     new_alerts.append(alert)
@@ -263,7 +263,7 @@ async def sync_committee_schedules():
                         business_number=biz.business_number,
                         alert_type="committee_scheduled",
                         event_date=event_date,
-                        message=f"Geschaeft {biz.business_number}: {description} (Datum: {date_str})",
+                        message=f"Geschäft {biz.business_number}: {description} (Datum: {date_str})",
                     )
                     db.add(alert)
                     new_alerts.append(alert)
@@ -321,7 +321,7 @@ async def sync_committee_schedules():
                         business_number=biz.business_number,
                         alert_type="debate_scheduled",
                         event_date=event_date,
-                        message=f"Geschaeft {biz.business_number}: {description} (Datum: {date_str})",
+                        message=f"Geschäft {biz.business_number}: {description} (Datum: {date_str})",
                     )
                     db.add(alert)
                     new_alerts.append(alert)

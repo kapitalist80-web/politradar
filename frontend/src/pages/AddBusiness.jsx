@@ -106,7 +106,7 @@ export default function AddBusiness() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Geschaeft hinzufuegen</h1>
+      <h1 className="text-2xl font-bold mb-6">Geschäft hinzufügen</h1>
 
       {error && (
         <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded mb-4">
@@ -123,7 +123,7 @@ export default function AddBusiness() {
 
       {/* Direct number input */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <h2 className="font-medium mb-3">Geschaeftsnummer eingeben</h2>
+        <h2 className="font-medium mb-3">Geschäftsnummer eingeben</h2>
         <div className="flex gap-2">
           <input
             type="text"
@@ -156,14 +156,14 @@ export default function AddBusiness() {
             disabled={adding}
             className="mt-4 bg-swiss-red text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-swiss-dark disabled:opacity-50"
           >
-            {adding ? "Wird hinzugefuegt..." : "Verfolgen"}
+            {adding ? "Wird hinzugefügt..." : "Verfolgen"}
           </button>
         </div>
       )}
 
       {/* Search */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="font-medium mb-3">Geschaeft suchen</h2>
+        <h2 className="font-medium mb-3">Geschäft suchen</h2>
         <div className="flex gap-2 mb-4">
           <input
             type="text"
@@ -185,7 +185,7 @@ export default function AddBusiness() {
         {cacheLoading && (
           <div className="flex items-center gap-2 text-sm text-gray-400 py-2">
             <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" />
-            Geschaefte werden geladen...
+            Geschäfte werden geladen...
           </div>
         )}
 
@@ -220,7 +220,7 @@ export default function AddBusiness() {
               ))}
             </div>
             <p className="text-xs text-gray-400 mt-3">
-              Aeltere Geschaefte? Klicken Sie &quot;Suchen&quot; fuer eine Suche
+              Ältere Geschäfte? Klicken Sie &quot;Suchen&quot; für eine Suche
               via Parlament-API.
             </p>
           </div>

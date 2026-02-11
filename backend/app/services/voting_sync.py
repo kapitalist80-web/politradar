@@ -68,7 +68,7 @@ def _parse_odata_date(raw) -> datetime | None:
         return None
 
 
-def _sync_vote_record(db: Session, vote_data: dict) -> bool:
+def _sync_vote_record(db: Session, vote_data: dict, session_name: str = "") -> bool:
     """Sync a single vote record. Returns True if new."""
     vote_id = vote_data.get("ID") or vote_data.get("IdVote")
     if not vote_id:
@@ -90,6 +90,7 @@ def _sync_vote_record(db: Session, vote_data: dict) -> bool:
         vote_date=vote_date,
         council_id=vote_data.get("CouncilId") or vote_data.get("IdCouncil"),
         session_id=str(vote_data.get("IdSession", "")),
+        session_name=session_name,
         total_yes=vote_data.get("TotalYes"),
         total_no=vote_data.get("TotalNo"),
         total_abstain=vote_data.get("TotalAbstain"),
@@ -153,6 +154,14 @@ async def sync_voting_data():
             logger.warning("No sessions fetched")
             return
 
+        # Build session name lookup
+        session_name_map = {}
+        for s in sessions_data:
+            sid = s.get("ID")
+            name = s.get("SessionName") or s.get("Abbreviation") or ""
+            if sid:
+                session_name_map[sid] = name
+
         # Filter to recent sessions (legislative period 51+)
         recent_sessions = [
             s for s in sessions_data
@@ -188,7 +197,7 @@ async def sync_voting_data():
                 if not vote_id:
                     continue
 
-                is_new = _sync_vote_record(db, vote_data)
+                is_new = _sync_vote_record(db, vote_data, session_name=session_name_map.get(session_id, ""))
                 if is_new:
                     total_new_votes += 1
 
@@ -205,6 +214,15 @@ async def sync_voting_data():
             # Commit per session and rate limit between sessions
             db.commit()
             await asyncio.sleep(1.0)
+
+        # Backfill session names for existing votes that are missing them
+        for sid, sname in session_name_map.items():
+            if sname:
+                db.query(Vote).filter(
+                    Vote.session_id == str(sid),
+                    Vote.session_name.is_(None),
+                ).update({"session_name": sname}, synchronize_session=False)
+        db.commit()
 
         logger.info(
             "Voting sync complete: %d new votes, %d new voting records",

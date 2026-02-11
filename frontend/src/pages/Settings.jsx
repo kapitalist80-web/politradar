@@ -11,7 +11,7 @@ import {
 } from "../api/client";
 
 const ALERT_TYPE_OPTIONS = [
-  { value: "status_change", label: "Statusaenderungen" },
+  { value: "status_change", label: "Statusänderungen" },
   { value: "committee_scheduled", label: "Kommissionstermine" },
   { value: "debate_scheduled", label: "Ratsdebatte traktandiert" },
   { value: "new_document", label: "Neue Dokumente" },
@@ -179,7 +179,7 @@ export default function Settings() {
             {emailEnabled && (
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Alert-Typen fuer E-Mail-Benachrichtigungen:
+                  Alert-Typen für E-Mail-Benachrichtigungen:
                 </p>
                 <div className="space-y-2">
                   {ALERT_TYPE_OPTIONS.map((opt) => (
@@ -212,8 +212,8 @@ export default function Settings() {
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mt-6">
         <h2 className="font-semibold mb-4">Datensynchronisation</h2>
         <p className="text-sm text-gray-500 mb-4">
-          Parlamentsdaten werden automatisch synchronisiert (Parlamentarier &amp; Kommissionen monatlich, Abstimmungen woechentlich).
-          Hier kannst du die Synchronisation manuell ausloesen.
+          Parlamentsdaten werden automatisch synchronisiert (Parlamentarier &amp; Kommissionen monatlich, Abstimmungen wöchentlich).
+          Hier kannst du die Synchronisation manuell auslösen.
         </p>
         <div className="space-y-3">
           <SyncButton
@@ -241,8 +241,8 @@ export default function Settings() {
             onClick={() => handleSync("votingData", triggerSyncVotingData)}
           />
           <SyncButton
-            label="Geschaefte"
-            description="Geschaefte aus 2025 und 2026 fuer schnelle Suche zwischenspeichern"
+            label="Geschäfte"
+            description="Geschäfte aus 2025 und 2026 für schnelle Suche zwischenspeichern"
             status={syncStatus.businesses}
             onClick={() => handleSync("businesses", triggerSyncBusinesses)}
           />
@@ -278,7 +278,7 @@ function SyncButton({ label, description, status, onClick }) {
           {status === "running" ? (
             <span className="flex items-center gap-1.5">
               <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
-              Laeuft...
+              Läuft...
             </span>
           ) : (
             "Starten"

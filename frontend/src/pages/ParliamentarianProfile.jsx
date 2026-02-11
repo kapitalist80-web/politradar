@@ -48,7 +48,7 @@ export default function ParliamentarianProfile() {
       <div className="text-center py-10">
         <p className="text-gray-500">Parlamentarier nicht gefunden</p>
         <Link to="/parliamentarians" className="text-swiss-red hover:underline text-sm mt-2 inline-block">
-          Zurueck zur Uebersicht
+          Zurück zur Übersicht
         </Link>
       </div>
     );
@@ -178,7 +178,7 @@ export default function ParliamentarianProfile() {
         to="/parliamentarians"
         className="text-sm text-gray-500 hover:text-swiss-red"
       >
-        &larr; Zurueck zur Uebersicht
+        &larr; Zurück zur Übersicht
       </Link>
     </div>
   );
