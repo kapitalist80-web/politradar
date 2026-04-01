@@ -99,6 +99,7 @@ class AlertOut(BaseModel):
     id: int
     business_number: str
     business_title: Optional[str] = None
+    business_id: Optional[int] = None
     alert_type: str
     message: str
     event_date: Optional[datetime] = None
