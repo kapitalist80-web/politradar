@@ -28,8 +28,8 @@ export default function Dashboard() {
   const [businesses, setBusinesses] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState("submission_date");
-  const [sortDir, setSortDir] = useState("desc");
+  const [sortKey, setSortKey] = useState("priority");
+  const [sortDir, setSortDir] = useState("asc");
 
   const load = async () => {
     try {

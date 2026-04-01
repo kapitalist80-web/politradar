@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { markAlertRead } from "../api/client";
 
 const TYPE_LABELS = {
@@ -30,12 +31,25 @@ export default function AlertItem({ alert, onUpdated }) {
             <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
               {TYPE_LABELS[alert.alert_type] || alert.alert_type}
             </span>
-            <span className="text-xs text-gray-500">
-              {alert.business_number}
-              {alert.business_title && (
-                <span className="ml-1 text-gray-400">– {alert.business_title}</span>
-              )}
-            </span>
+            {alert.business_id ? (
+              <Link
+                to={`/business/${alert.business_id}`}
+                className="text-xs text-swiss-red hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {alert.business_number}
+                {alert.business_title && (
+                  <span className="ml-1 text-gray-400">– {alert.business_title}</span>
+                )}
+              </Link>
+            ) : (
+              <span className="text-xs text-gray-500">
+                {alert.business_number}
+                {alert.business_title && (
+                  <span className="ml-1 text-gray-400">– {alert.business_title}</span>
+                )}
+              </span>
+            )}
             {!alert.is_read && (
               <span className="w-2 h-2 rounded-full bg-swiss-red flex-shrink-0" />
             )}

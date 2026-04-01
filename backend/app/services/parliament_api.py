@@ -326,13 +326,15 @@ async def fetch_new_businesses(since_date: str) -> list[dict]:
         "$filter": f"SubmissionDate ge datetime'{since_date}T00:00:00' and Language eq 'DE'",
         "$format": "json",
         "$orderby": "SubmissionDate desc",
-        "$top": "100",
+        "$top": "500",
     }
     data = await _get(url, params)
     if not data:
         return []
 
     results = data.get("d", {}).get("results", []) if isinstance(data.get("d"), dict) else []
+    if not results:
+        results = data.get("d", []) if isinstance(data.get("d"), list) else []
     out = []
     for item in results:
         nr = item.get("BusinessShortNumber", "")

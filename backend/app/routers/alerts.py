@@ -16,12 +16,13 @@ _SCHEDULED_TYPES = {"committee_scheduled", "debate_scheduled"}
 
 
 def _attach_business_titles(alerts: list[Alert], user_id: int, db: Session) -> list[dict]:
-    """Look up business titles for a list of alerts and return dicts with business_title."""
+    """Look up business titles and IDs for a list of alerts and return dicts."""
     biz_numbers = list({a.business_number for a in alerts})
     title_map: dict[str, str] = {}
+    id_map: dict[str, int] = {}
     if biz_numbers:
         rows = (
-            db.query(TrackedBusiness.business_number, TrackedBusiness.title)
+            db.query(TrackedBusiness.business_number, TrackedBusiness.title, TrackedBusiness.id)
             .filter(
                 TrackedBusiness.user_id == user_id,
                 TrackedBusiness.business_number.in_(biz_numbers),
@@ -30,6 +31,7 @@ def _attach_business_titles(alerts: list[Alert], user_id: int, db: Session) -> l
         )
         for row in rows:
             title_map[row.business_number] = row.title or ""
+            id_map[row.business_number] = row.id
 
     result = []
     for a in alerts:
@@ -37,6 +39,7 @@ def _attach_business_titles(alerts: list[Alert], user_id: int, db: Session) -> l
             "id": a.id,
             "business_number": a.business_number,
             "business_title": title_map.get(a.business_number, ""),
+            "business_id": id_map.get(a.business_number),
             "alert_type": a.alert_type,
             "message": a.message,
             "event_date": a.event_date,

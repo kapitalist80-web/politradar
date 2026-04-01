@@ -158,7 +158,7 @@ async def fetch_monitoring_candidates():
     """Fetch new businesses for monitoring (runs daily at 07:00)."""
     db: Session = SessionLocal()
     try:
-        since = (datetime.utcnow() - timedelta(days=2)).strftime("%Y-%m-%d")
+        since = (datetime.utcnow() - timedelta(days=90)).strftime("%Y-%m-%d")
         new_businesses = await fetch_new_businesses(since)
         added = 0
 
